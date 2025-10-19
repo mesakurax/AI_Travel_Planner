@@ -6,8 +6,8 @@ const routes = [
   {
     path: '/',
     name: 'Home',
-    component: () => import('@/views/Home.vue'),
-    meta: { requiresAuth: true }
+    component: () => import('@/views/Home.vue')
+    // 首页不需要认证，任何人都可以访问
   },
   {
     path: '/login',
@@ -57,9 +57,14 @@ router.beforeEach(async (to, from, next) => {
   
   const isAuthenticated = authStore.user !== null
 
-  if (to.meta.requiresAuth && !isAuthenticated) {
+  // 如果已登录用户访问首页，自动跳转到 Dashboard
+  if (to.name === 'Home' && isAuthenticated) {
+    next({ name: 'Dashboard' })
+  } else if (to.meta.requiresAuth && !isAuthenticated) {
+    // 需要登录但未登录，跳转到登录页
     next({ name: 'Login' })
   } else if (to.meta.requiresGuest && isAuthenticated) {
+    // 已登录用户访问登录/注册页，跳转到 Dashboard
     next({ name: 'Dashboard' })
   } else {
     next()

@@ -78,6 +78,12 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true
       error.value = null
 
+      // 检查是否存在会话
+      if (!user.value) {
+        console.warn('用户未登录，无需登出')
+        return { success: true }
+      }
+
       const { error: signOutError } = await supabase.auth.signOut()
       if (signOutError) throw signOutError
 
