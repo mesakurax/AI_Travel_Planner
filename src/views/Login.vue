@@ -29,6 +29,13 @@
           />
         </div>
 
+        <!-- 自动登录/记住我 -->
+        <div class="form-row remember-row">
+          <label class="remember-label">
+            <input type="checkbox" v-model="remember" /> 自动登录
+          </label>
+        </div>
+
         <div v-if="errorMessage" class="error-message">
           {{ errorMessage }}
         </div>
@@ -76,6 +83,7 @@ const formData = ref({
   password: ''
 })
 
+const remember = ref(true)
 const errorMessage = ref('')
 const showReset = ref(false)
 const resetEmail = ref('')
@@ -83,7 +91,7 @@ const resetEmail = ref('')
 const handleLogin = async () => {
   errorMessage.value = ''
   
-  const result = await authStore.login(formData.value.email, formData.value.password)
+  const result = await authStore.login(formData.value.email, formData.value.password, remember.value)
   
   if (result.success) {
     router.push('/dashboard')
@@ -309,5 +317,15 @@ const handleResetPassword = async () => {
 
 .btn-secondary:hover {
   background: #d0d0d0;
+}
+
+.remember-row {
+  display: flex;
+  align-items: center;
+}
+
+.remember-label {
+  font-size: 14px;
+  color: #666;
 }
 </style>

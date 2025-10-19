@@ -21,14 +21,14 @@
           <div class="action-icon">✈️</div>
           <h3>创建新行程</h3>
           <p>使用 AI 快速规划旅行路线</p>
-          <button class="btn-action" disabled>即将推出</button>
+          <button class="btn-action" @click="createPlan">立即创建</button>
         </div>
 
         <div class="action-card">
           <div class="action-icon">📋</div>
           <h3>我的行程</h3>
           <p>查看和管理已保存的旅行计划</p>
-          <button class="btn-action" disabled>即将推出</button>
+          <button class="btn-action" @click="viewPlans">查看行程</button>
         </div>
 
         <div class="action-card">
@@ -41,14 +41,14 @@
 
       <div class="info-section">
         <div class="info-card">
-          <h3>📱 功能开发中</h3>
+          <h3>📱 功能状态</h3>
           <ul>
             <li>✅ 用户注册登录系统</li>
-            <li>🚧 智能行程规划</li>
-            <li>🚧 语音输入功能</li>
-            <li>🚧 地图集成</li>
+            <li>✅ 智能行程规划</li>
+            <li>✅ 语音输入功能</li>
+            <li>✅ 地图集成</li>
             <li>🚧 费用预算管理</li>
-            <li>🚧 云端数据同步</li>
+            <li>✅ 云端数据同步</li>
           </ul>
         </div>
       </div>
@@ -74,6 +74,15 @@ const handleLogout = async () => {
   if (result.success) {
     router.push('/login')
   }
+}
+
+const createPlan = () => {
+  router.push('/plan/create')
+}
+
+const viewPlans = () => {
+  // 暂时也跳转到创建页
+  router.push('/plan/create')
 }
 </script>
 

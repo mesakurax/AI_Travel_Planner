@@ -28,6 +28,18 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/plan/create',
+    name: 'PlanCreator',
+    component: () => import('@/views/PlanCreator.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/plan/:id',
+    name: 'PlanDetail',
+    component: () => import('@/views/PlanDetail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/NotFound.vue')
