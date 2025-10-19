@@ -31,6 +31,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTravelStore } from '@/stores/travel'
 import VoiceInput from '@/components/VoiceInput.vue'
+import aiService from '@/services/ai'
 
 const router = useRouter()
 const travelStore = useTravelStore()
@@ -50,20 +51,30 @@ const handleInput = async (text) => {
   loading.value = true
 
   try {
-    // 解析用户输入
-    loadingMessage.value = '正在解析您的需求...'
-    const request = parseUserInput(text)
+    // 第一步：使用 AI 预处理，提取结构化信息
+    loadingMessage.value = '🤖 AI 正在理解您的需求...'
+    const parsedRequest = await aiService.parseUserInput(text)
     
-    if (!request.destination) {
-      throw new Error('请提供目的地信息')
+    console.log('AI 解析结果:', parsedRequest)
+    
+    // 检查置信度，如果太低则提示用户
+    if (parsedRequest.confidence < 0.5) {
+      throw new Error(
+        parsedRequest.error || 
+        '抱歉，无法准确理解您的需求。请尝试更清楚地描述，例如："我想去北京玩3天，预算5000元"'
+      )
+    }
+    
+    if (!parsedRequest.destination || parsedRequest.destination === '待确认') {
+      throw new Error('请告诉我您想去哪里旅行，例如："我想去杭州"')
     }
 
-    // 生成旅行计划
-    loadingMessage.value = '正在生成旅行计划...'
-    const result = await travelStore.createPlan(request)
+    // 第二步：使用结构化的数据生成旅行计划
+    loadingMessage.value = `✨ 正在为您规划 ${parsedRequest.destination} ${parsedRequest.days}天之旅...`
+    const result = await travelStore.createPlan(parsedRequest)
 
     if (result.success) {
-      loadingMessage.value = '计划生成成功！正在跳转...'
+      loadingMessage.value = '🎉 计划生成成功！正在跳转...'
       
       // 清空输入
       if (voiceInput.value) {
@@ -78,86 +89,10 @@ const handleInput = async (text) => {
       throw new Error(result.error || '生成计划失败')
     }
   } catch (err) {
+    console.error('处理输入失败:', err)
     error.value = err.message
     loading.value = false
   }
-}
-
-/**
- * 解析用户输入
- */
-const parseUserInput = (text) => {
-  const request = {
-    destination: '',
-    days: 3,
-    budget: 5000,
-    travelers: 1,
-    preferences: [],
-    withChildren: false,
-    startDate: null
-  }
-
-  // 提取目的地
-  const destinationMatch = text.match(/(?:去|到|想去|计划去|前往)([^，,。\s]+)/)
-  if (destinationMatch) {
-    request.destination = destinationMatch[1].trim()
-  }
-
-  // 提取天数
-  const daysMatch = text.match(/(\d+)\s*(?:天|日)/)
-  if (daysMatch) {
-    request.days = parseInt(daysMatch[1])
-  }
-
-  // 提取预算
-  const budgetMatch = text.match(/(?:预算|花费|费用).*?(\d+(?:\.\d+)?)\s*(?:万|元|块)/)
-  if (budgetMatch) {
-    let amount = parseFloat(budgetMatch[1])
-    if (text.includes('万')) {
-      amount *= 10000
-    }
-    request.budget = amount
-  }
-
-  // 提取人数
-  const travelersMatch = text.match(/(\d+)\s*(?:人|个人)/)
-  if (travelersMatch) {
-    request.travelers = parseInt(travelersMatch[1])
-  }
-
-  // 提取偏好
-  const preferenceKeywords = {
-    '美食': 'FOOD',
-    '文化': 'CULTURE',
-    '自然': 'NATURE',
-    '历史': 'HISTORY',
-    '购物': 'SHOPPING',
-    '冒险': 'ADVENTURE',
-    '休闲': 'RELAXATION',
-    '动漫': 'ANIME',
-    '艺术': 'ART',
-    '摄影': 'PHOTOGRAPHY'
-  }
-
-  for (const [keyword, type] of Object.entries(preferenceKeywords)) {
-    if (text.includes(keyword)) {
-      request.preferences.push(keyword)
-    }
-  }
-
-  // 检测是否带孩子
-  if (text.includes('带孩子') || text.includes('孩子') || text.includes('小孩')) {
-    request.withChildren = true
-  }
-
-  // 提取日期
-  const dateMatch = text.match(/(\d{4})[年\-\/](\d{1,2})[月\-\/](\d{1,2})/)
-  if (dateMatch) {
-    const [, year, month, day] = dateMatch
-    request.startDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
-  }
-
-  return request
 }
 
 /**

@@ -13,6 +13,94 @@ class AIService {
   }
 
   /**
+   * 预处理用户输入，提取结构化的旅行信息
+   * @param {string} userInput - 用户的自然语言输入
+   * @returns {Promise<Object>} 结构化的旅行需求
+   */
+  async parseUserInput(userInput) {
+    const prompt = `从用户输入提取旅行信息，返回JSON。
+
+输入："${userInput}"
+
+提取字段：
+- destination: 目的地城市（必填，如"北京"）
+- days: 天数（数字，"周末"=2，"一周"=7，默认3）
+- budget: 预算元（"5k"=5000，"1万"=10000，默认5000）
+- travelers: 人数（"一家三口"=3，默认1）
+- preferences: 偏好数组（可选：美食、历史文化、自然风光、购物、休闲度假、冒险刺激）
+- withChildren: 是否带孩子（关键词：孩子/宝宝/亲子/一家人，默认false）
+- startDate: 出发日期 YYYY-MM-DD（未提及=null）
+- confidence: 置信度0-1（完整清晰>0.8，仅目的地~0.6，模糊<0.5）
+
+只返回JSON：
+{"destination":"","days":3,"budget":5000,"travelers":1,"preferences":[],"withChildren":false,"startDate":null,"confidence":0.8}`
+
+    try {
+      const response = await axios.post(
+        `${this.baseURL}/chat/completions`,
+        {
+          model: this.model,
+          messages: [
+            {
+              role: 'system',
+              content: '你是一个智能的信息提取助手，擅长从自然语言中提取结构化的旅行规划信息。'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.3, // 降低温度以获得更准确的提取
+          max_tokens: 500
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      const content = response.data.choices[0].message.content
+      
+      // 提取 JSON
+      const jsonMatch = content.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        throw new Error('无法解析AI返回的信息')
+      }
+
+      const parsed = JSON.parse(jsonMatch[0])
+      
+      // 数据验证和清洗
+      return {
+        destination: parsed.destination || '未知目的地',
+        days: parseInt(parsed.days) || 3,
+        budget: parseInt(parsed.budget) || 5000,
+        travelers: parseInt(parsed.travelers) || 1,
+        preferences: Array.isArray(parsed.preferences) ? parsed.preferences : ['美食', '历史文化'],
+        withChildren: parsed.withChildren === true,
+        startDate: parsed.startDate || null,
+        confidence: parsed.confidence || 0.5
+      }
+    } catch (error) {
+      console.error('解析用户输入失败:', error)
+      
+      // 如果AI解析失败，返回一个基础的默认结构
+      return {
+        destination: '待确认',
+        days: 3,
+        budget: 5000,
+        travelers: 1,
+        preferences: ['美食', '历史文化'],
+        withChildren: false,
+        startDate: null,
+        confidence: 0.1,
+        error: '无法自动识别，请手动填写'
+      }
+    }
+  }
+
+  /**
    * 生成旅行计划
    */
   async generateTravelPlan(travelRequest) {
@@ -117,7 +205,7 @@ ${withChildren ? '带孩子同行' : ''}
 1. 活动类型包括：景点、餐厅、交通、购物、休闲
 2. 每天安排 3-5 个活动
 3. 考虑用户偏好和是否带孩子
-4. 预算分配要合理
+4. 预算分配要合理，预算使用率70%左右
 5. 地址要详细准确
 6. 时间安排要考虑交通和游览时间`
   }
