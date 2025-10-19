@@ -27,13 +27,11 @@ class AIService {
 - days: 天数（数字，"周末"=2，"一周"=7，默认3）
 - budget: 预算元（"5k"=5000，"1万"=10000，默认5000）
 - travelers: 人数（"一家三口"=3，默认1）
-- preferences: 偏好数组（可选：美食、历史文化、自然风光、购物、休闲度假、冒险刺激）
-- withChildren: 是否带孩子（关键词：孩子/宝宝/亲子/一家人，默认false）
-- startDate: 出发日期 YYYY-MM-DD（未提及=null）
+- preferences: 偏好数组（可选：美食、历史文化、自然风光、购物、休闲度假、冒险刺激、亲子）
 - confidence: 置信度0-1（完整清晰>0.8，仅目的地~0.6，模糊<0.5）
 
 只返回JSON：
-{"destination":"","days":3,"budget":5000,"travelers":1,"preferences":[],"withChildren":false,"startDate":null,"confidence":0.8}`
+{"destination":"","days":3,"budget":5000,"travelers":1,"preferences":[],"confidence":0.8}`
 
     try {
       const response = await axios.post(
@@ -51,7 +49,7 @@ class AIService {
             }
           ],
           temperature: 0.3, // 降低温度以获得更准确的提取
-          max_tokens: 500
+          max_tokens: 1000 // 提取结构化信息，1000足够
         },
         {
           headers: {
@@ -78,8 +76,6 @@ class AIService {
         budget: parseInt(parsed.budget) || 5000,
         travelers: parseInt(parsed.travelers) || 1,
         preferences: Array.isArray(parsed.preferences) ? parsed.preferences : ['美食', '历史文化'],
-        withChildren: parsed.withChildren === true,
-        startDate: parsed.startDate || null,
         confidence: parsed.confidence || 0.5
       }
     } catch (error) {
@@ -92,8 +88,6 @@ class AIService {
         budget: 5000,
         travelers: 1,
         preferences: ['美食', '历史文化'],
-        withChildren: false,
-        startDate: null,
         confidence: 0.1,
         error: '无法自动识别，请手动填写'
       }
@@ -122,7 +116,7 @@ class AIService {
             }
           ],
           temperature: 0.7,
-          max_tokens: 4000
+          max_tokens: 12000 // 充分利用模型16K输出能力，生成详细行程
         },
         {
           headers: {
@@ -144,7 +138,7 @@ class AIService {
    * 构建提示词
    */
   buildTravelPlanPrompt(request) {
-    const { destination, days, budget, travelers, preferences, withChildren, startDate } = request
+    const { destination, days, budget, travelers, preferences } = request
     
     return `请为我规划一次旅行：
 
@@ -153,8 +147,6 @@ class AIService {
 预算：${budget}元
 同行人数：${travelers}人
 旅行偏好：${preferences.join('、')}
-${withChildren ? '带孩子同行' : ''}
-出发日期：${startDate || '待定'}
 
 请按以下 JSON 格式返回详细的旅行计划：
 
@@ -204,8 +196,8 @@ ${withChildren ? '带孩子同行' : ''}
 注意：
 1. 活动类型包括：景点、餐厅、交通、购物、休闲
 2. 每天安排 3-5 个活动
-3. 考虑用户偏好和是否带孩子
-4. 预算分配要合理，预算使用率70%左右
+3. 根据用户偏好安排活动（如有"亲子"偏好则安排适合儿童的活动）
+4. 预算分配要合理，预算使用率70%左右[非常重要!!]
 5. 地址要详细准确
 6. 时间安排要考虑交通和游览时间`
   }
@@ -258,15 +250,11 @@ ${withChildren ? '带孩子同行' : ''}
    */
   generateDefaultPlan(request) {
     const itinerary = []
-    const startDate = request.startDate ? new Date(request.startDate) : new Date()
     
     for (let i = 0; i < request.days; i++) {
-      const currentDate = new Date(startDate)
-      currentDate.setDate(startDate.getDate() + i)
-      
       itinerary.push({
         day: i + 1,
-        date: currentDate.toISOString().split('T')[0],
+        date: '',
         theme: `第${i + 1}天`,
         activities: [
           {
@@ -309,9 +297,7 @@ ${withChildren ? '带孩子同行' : ''}
       days: plan.days,
       budget: plan.budget,
       travelers: plan.travelers || 1,
-      preferences: plan.preferences ? (typeof plan.preferences === 'string' ? plan.preferences.split(',') : plan.preferences) : [],
-      withChildren: plan.with_children || false,
-      startDate: plan.start_date || null
+      preferences: plan.preferences ? (typeof plan.preferences === 'string' ? plan.preferences.split(',') : plan.preferences) : []
     }
     
     const prompt = `作为专业的旅行规划师，请优化以下旅行计划。
@@ -322,7 +308,6 @@ ${withChildren ? '带孩子同行' : ''}
 总预算：¥${request.budget}
 人数：${request.travelers}人
 偏好：${request.preferences.join('、')}
-${request.withChildren ? '（带孩子同行）' : ''}
 
 【原始行程概要】
 ${plan.summary || '暂无概要'}
@@ -409,7 +394,7 @@ ${JSON.stringify(plan.budget_breakdown, null, 2)}
             { role: 'user', content: prompt }
           ],
           temperature: 0.5,
-          max_tokens: 4000
+          max_tokens: 12000 // 优化行程需要足够的token生成完整内容
         },
         {
           headers: {
