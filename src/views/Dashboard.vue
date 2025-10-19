@@ -34,8 +34,8 @@
         <div class="action-card">
           <div class="action-icon">💰</div>
           <h3>费用管理</h3>
-          <p>记录和分析旅行开销</p>
-          <button class="btn-action" disabled>即将推出</button>
+          <p>可视化分析旅行费用分布</p>
+          <button class="btn-action" @click="viewExpenses">费用分析</button>
         </div>
       </div>
 
@@ -47,7 +47,7 @@
             <li>✅ 智能行程规划</li>
             <li>✅ 语音输入功能</li>
             <li>✅ 地图集成</li>
-            <li>🚧 费用预算管理</li>
+            <li>✅ 费用可视化分析</li>
             <li>✅ 云端数据同步</li>
           </ul>
         </div>
@@ -82,6 +82,10 @@ const createPlan = () => {
 
 const viewPlans = () => {
   router.push('/plans')
+}
+
+const viewExpenses = () => {
+  router.push('/expenses')
 }
 </script>
 
