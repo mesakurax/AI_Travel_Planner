@@ -189,8 +189,8 @@ class XunfeiASR {
       
       this.mediaStreamSource = this.audioContext.createMediaStreamSource(this.stream)
       
-      // 使用 ScriptProcessorNode（frameSize: 1280，对应官方示例）
-      const bufferSize = 1280
+      // 使用 ScriptProcessorNode（bufferSize 必须是 2 的幂次方，使用 2048）
+      const bufferSize = 2048 // 最接近官方推荐的 1280
       this.processor = this.audioContext.createScriptProcessor(bufferSize, 1, 1)
       
       // 音频数据处理
