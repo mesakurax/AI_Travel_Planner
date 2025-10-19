@@ -125,12 +125,87 @@
 
 ## 4. AI 大模型配置
 
-本项目支持任何兼容 OpenAI API 格式的大模型服务。以下提供几种选择：
+本项目支持任何兼容 OpenAI API 格式的大模型服务。**强烈推荐使用阿里云百练平台（通义千问）**，中文能力强，价格实惠，服务稳定。
 
-### 选项 A: OpenAI (ChatGPT)
+---
+
+### 🌟 推荐选项：阿里云百练平台（通义千问）
+
+**为什么选择阿里云百练？**
+- ✅ **中文能力优秀**：专为中文场景优化，旅行规划更准确
+- ✅ **价格实惠**：比 GPT-3.5 便宜约 70%
+- ✅ **国内访问稳定**：无需科学上网，响应速度快
+- ✅ **新用户福利**：赠送免费额度
+- ✅ **兼容 OpenAI 接口**：无需修改代码
+
+#### 4.1 注册并开通服务
+
+1. 访问 [阿里云百炼平台](https://bailian.console.aliyun.com/)
+2. 登录阿里云账号（没有则先注册）
+3. 进入 **模型广场**
+4. 选择 **通义千问** 系列模型
+5. 点击 **开通服务**（新用户有免费额度）
+
+#### 4.2 获取 API Key
+
+1. 在百炼平台点击右上角 **API-KEY 管理**
+2. 或直接访问 [API Key 管理页](https://bailian.console.aliyun.com/?apiKey=1)
+3. 点击 **创建新的 API-KEY**
+4. 复制生成的 API Key（以 `sk-` 开头）
+5. **重要**：立即保存，只显示一次！
+
+#### 4.3 配置环境变量
+
+在 `.env` 文件中填入：
+
+```env
+# AI 大模型配置（阿里云百练）
+VITE_AI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
+VITE_AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+VITE_AI_MODEL=qwen-plus
+```
+
+#### 4.4 选择合适的模型
+
+**推荐模型：`qwen-plus`** （最适合本项目）
+
+| 模型名称 | 特点 | 价格（元/百万 tokens） | 推荐场景 |
+|---------|------|---------------------|---------|
+| **qwen-plus** ⭐ | **均衡性能，推荐** | 输入 0.8 / 输出 2.0 | **本项目首选** |
+| qwen-turbo | 速度快，便宜 | 输入 0.3 / 输出 0.6 | 预算有限 |
+| qwen-max | 能力最强 | 输入 20 / 输出 60 | 追求极致体验 |
+| qwen-long | 超长上下文 | 输入 0.5 / 输出 2.0 | 复杂规划 |
+
+**为什么推荐 `qwen-plus`？**
+- ✅ 性价比最高
+- ✅ 中文理解能力强，旅行规划准确
+- ✅ 生成速度快，用户体验好
+- ✅ 支持 JSON 格式输出
+- ✅ 价格合理（约 0.01-0.02 元/次查询）
+
+#### 4.5 费用估算
+
+假设平均每次行程规划：
+- 输入：约 1000 tokens（用户需求 + 提示词）
+- 输出：约 2000 tokens（完整行程）
+
+**使用 `qwen-plus` 的费用：**
+```
+单次费用 = (1000 × 0.8 + 2000 × 2.0) / 1,000,000 = 0.0048 元
+即：每次规划不到 0.5 分钱！
+```
+
+100 元可以规划约 20,000 次行程，足够个人项目长期使用。
+
+---
+
+### 其他可选方案
+
+<details>
+<summary>选项 A: OpenAI (ChatGPT) - 点击展开</summary>
 
 1. 访问 [OpenAI Platform](https://platform.openai.com/)
-2. 注册/登录账号
+2. 注册/登录账号（需要国外手机号）
 3. 进入 **API Keys**
 4. 点击 "Create new secret key"
 5. 复制生成的 API Key（以 `sk-` 开头）
@@ -142,11 +217,13 @@ VITE_AI_BASE_URL=https://api.openai.com/v1
 VITE_AI_MODEL=gpt-3.5-turbo
 ```
 
-**费用：** 按使用量计费，GPT-3.5-Turbo 约 $0.002/1K tokens
+**费用：** $0.50/百万输入 tokens，$1.50/百万输出 tokens  
+**缺点：** 需要科学上网，国内访问不稳定
 
----
+</details>
 
-### 选项 B: DeepSeek（推荐国内用户）
+<details>
+<summary>选项 B: DeepSeek - 点击展开</summary>
 
 1. 访问 [DeepSeek 开放平台](https://platform.deepseek.com/)
 2. 注册/登录账号
@@ -160,26 +237,13 @@ VITE_AI_BASE_URL=https://api.deepseek.com/v1
 VITE_AI_MODEL=deepseek-chat
 ```
 
-**优势：** 价格便宜，中文能力强
+**优势：** 价格最便宜（0.14 元/百万输入 tokens）  
+**缺点：** 旅行规划场景表现不如通义千问
 
----
+</details>
 
-### 选项 C: 阿里云通义千问
-
-1. 访问 [阿里云百炼平台](https://bailian.console.aliyun.com/)
-2. 开通服务并获取 API Key
-3. 使用兼容 OpenAI 的接口
-
-**配置：**
-```env
-VITE_AI_API_KEY=sk-xxxxxxxxxxxxxxxx
-VITE_AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-VITE_AI_MODEL=qwen-turbo
-```
-
----
-
-### 选项 D: 本地部署（Ollama）
+<details>
+<summary>选项 C: 本地部署（Ollama）- 点击展开</summary>
 
 如果想完全免费使用，可以本地部署：
 
@@ -193,6 +257,11 @@ VITE_AI_API_KEY=ollama
 VITE_AI_BASE_URL=http://localhost:11434/v1
 VITE_AI_MODEL=qwen:7b
 ```
+
+**优势：** 完全免费，数据隐私  
+**缺点：** 需要高性能电脑，效果不如云端模型
+
+</details>
 
 ---
 

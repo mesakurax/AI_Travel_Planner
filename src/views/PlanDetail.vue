@@ -1,9 +1,28 @@
 <template>
   <div class="plan-detail">
-    <div class="detail-container">
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading-overlay">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <p>正在加载行程...</p>
+      </div>
+    </div>
+
+    <!-- 错误状态 -->
+    <div v-else-if="error" class="error-overlay">
+      <div class="error-content">
+        <div class="error-icon">⚠️</div>
+        <p>{{ error }}</p>
+        <p class="error-hint">将在 3 秒后返回行程列表...</p>
+      </div>
+    </div>
+
+    <!-- 正常内容 -->
+    <div v-else class="detail-container">
       <!-- 左侧地图 -->
       <div class="map-section">
         <TravelMap
+          v-if="plan"
           ref="mapRef"
           :markers="allMarkers"
           :route="routePoints"
@@ -33,51 +52,51 @@
             <div class="summary-info">
               <div class="info-item">
                 <span class="label">📍 目的地:</span>
-                <span class="value">{{ plan.request.destination }}</span>
+                <span class="value">{{ plan.destination }}</span>
               </div>
               <div class="info-item">
                 <span class="label">📅 天数:</span>
-                <span class="value">{{ plan.request.days }}天</span>
+                <span class="value">{{ plan.days }}天</span>
               </div>
               <div class="info-item">
                 <span class="label">💰 预算:</span>
-                <span class="value">¥{{ plan.request.budget.toLocaleString() }}</span>
+                <span class="value">¥{{ (plan.budget || 0).toLocaleString() }}</span>
               </div>
-              <div class="info-item">
+              <div class="info-item" v-if="plan.travelers">
                 <span class="label">👥 人数:</span>
-                <span class="value">{{ plan.request.travelers }}人</span>
+                <span class="value">{{ plan.travelers }}人</span>
               </div>
             </div>
             <p v-if="plan.summary" class="summary-text">{{ plan.summary }}</p>
           </div>
 
           <!-- 预算分解 -->
-          <div class="budget-card">
+          <div class="budget-card" v-if="plan.budget_breakdown">
             <h3>预算分解</h3>
             <div class="budget-items">
-              <div class="budget-item">
+              <div class="budget-item" v-if="plan.budget_breakdown.transportation">
                 <span class="label">🚄 交通</span>
-                <span class="value">¥{{ plan.budget.transportation.toLocaleString() }}</span>
+                <span class="value">¥{{ (plan.budget_breakdown.transportation || 0).toLocaleString() }}</span>
               </div>
-              <div class="budget-item">
+              <div class="budget-item" v-if="plan.budget_breakdown.accommodation">
                 <span class="label">🏨 住宿</span>
-                <span class="value">¥{{ plan.budget.accommodation.toLocaleString() }}</span>
+                <span class="value">¥{{ (plan.budget_breakdown.accommodation || 0).toLocaleString() }}</span>
               </div>
-              <div class="budget-item">
+              <div class="budget-item" v-if="plan.budget_breakdown.food">
                 <span class="label">🍜 餐饮</span>
-                <span class="value">¥{{ plan.budget.food.toLocaleString() }}</span>
+                <span class="value">¥{{ (plan.budget_breakdown.food || 0).toLocaleString() }}</span>
               </div>
-              <div class="budget-item">
+              <div class="budget-item" v-if="plan.budget_breakdown.activities">
                 <span class="label">🎫 活动</span>
-                <span class="value">¥{{ plan.budget.activities.toLocaleString() }}</span>
+                <span class="value">¥{{ (plan.budget_breakdown.activities || 0).toLocaleString() }}</span>
               </div>
-              <div class="budget-item">
+              <div class="budget-item" v-if="plan.budget_breakdown.shopping">
                 <span class="label">🛍️ 购物</span>
-                <span class="value">¥{{ plan.budget.shopping.toLocaleString() }}</span>
+                <span class="value">¥{{ (plan.budget_breakdown.shopping || 0).toLocaleString() }}</span>
               </div>
               <div class="budget-item total">
                 <span class="label">总计</span>
-                <span class="value">¥{{ plan.budget.total.toLocaleString() }}</span>
+                <span class="value">¥{{ (plan.budget_breakdown.total || plan.budget || 0).toLocaleString() }}</span>
               </div>
             </div>
           </div>
@@ -149,27 +168,30 @@ const router = useRouter()
 const travelStore = useTravelStore()
 
 const mapRef = ref(null)
-const loading = ref(false)
+const loading = ref(true)
+const error = ref(null)
 
 const plan = computed(() => travelStore.currentPlan)
 
 // 所有标记点
 const allMarkers = computed(() => {
-  if (!plan.value) return []
+  if (!plan.value || !plan.value.itinerary) return []
   
   const markers = []
   plan.value.itinerary.forEach(day => {
-    day.activities.forEach(activity => {
-      if (activity.location) {
-        markers.push({
-          ...activity.location,
-          name: activity.name,
-          description: activity.description,
-          estimatedCost: activity.estimatedCost,
-          type: activity.type
-        })
-      }
-    })
+    if (day.activities) {
+      day.activities.forEach(activity => {
+        if (activity.location) {
+          markers.push({
+            ...activity.location,
+            name: activity.name,
+            description: activity.description,
+            estimatedCost: activity.estimatedCost,
+            type: activity.type
+          })
+        }
+      })
+    }
   })
   
   return markers
@@ -183,21 +205,45 @@ const routePoints = computed(() => {
 onMounted(async () => {
   const planId = route.params.id
   
-  if (planId) {
-    await travelStore.fetchPlanById(planId)
-  } else if (!plan.value) {
-    router.push('/plan/create')
+  if (!planId) {
+    router.push('/plans')
+    return
+  }
+  
+  loading.value = true
+  error.value = null
+  
+  try {
+    const result = await travelStore.fetchPlanById(planId)
+    
+    if (!result.success) {
+      throw new Error(result.error || '加载计划失败')
+    }
+    
+    // 等待一下让数据渲染
+    setTimeout(() => {
+      loading.value = false
+    }, 300)
+  } catch (err) {
+    console.error('加载计划失败:', err)
+    error.value = err.message
+    loading.value = false
+    
+    // 如果加载失败，3秒后返回列表
+    setTimeout(() => {
+      router.push('/plans')
+    }, 3000)
   }
 })
 
 const goBack = () => {
-  router.push('/dashboard')
+  router.push('/plans')
 }
 
 const optimizePlan = async () => {
-  loading.value = true
+  const optimizing = ref(true)
   await travelStore.optimizePlan()
-  loading.value = false
+  optimizing.value = false
 }
 
 const savePlan = async () => {
@@ -232,6 +278,59 @@ const getTypeIcon = (type) => {
 .plan-detail {
   min-height: 100vh;
   background: #f5f5f5;
+  position: relative;
+}
+
+.loading-overlay,
+.error-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.loading-content,
+.error-content {
+  text-align: center;
+  padding: 40px;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-content p,
+.error-content p {
+  color: #666;
+  font-size: 16px;
+  margin: 10px 0;
+}
+
+.error-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.error-hint {
+  font-size: 14px;
+  color: #999;
 }
 
 .detail-container {

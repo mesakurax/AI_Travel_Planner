@@ -28,6 +28,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/plans',
+    name: 'PlanList',
+    component: () => import('@/views/PlanList.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/plan/create',
     name: 'PlanCreator',
     component: () => import('@/views/PlanCreator.vue'),

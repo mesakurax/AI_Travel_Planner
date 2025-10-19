@@ -81,8 +81,7 @@ const createPlan = () => {
 }
 
 const viewPlans = () => {
-  // 暂时也跳转到创建页
-  router.push('/plan/create')
+  router.push('/plans')
 }
 </script>
 
