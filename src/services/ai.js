@@ -226,22 +226,87 @@ ${withChildren ? '带孩子同行' : ''}
       startDate: plan.start_date || null
     }
     
-    const prompt = `请优化以下旅行计划，重点考虑：
-1. 景点之间的距离和交通便利性
-2. 时间安排的合理性（避免赶路）
-3. 预算分配的优化
-4. 考虑用户偏好
+    const prompt = `作为专业的旅行规划师，请优化以下旅行计划。
 
-原计划：
-${JSON.stringify({
-  destination: request.destination,
-  days: request.days,
-  budget: request.budget,
-  itinerary: plan.itinerary,
-  budget_breakdown: plan.budget_breakdown
-}, null, 2)}
+【原始行程信息】
+目的地：${request.destination}
+旅行天数：${request.days}天
+总预算：¥${request.budget}
+人数：${request.travelers}人
+偏好：${request.preferences.join('、')}
+${request.withChildren ? '（带孩子同行）' : ''}
 
-请返回优化后的完整 JSON 数据，格式与原计划相同。`
+【原始行程概要】
+${plan.summary || '暂无概要'}
+
+【原始行程安排】
+${JSON.stringify(plan.itinerary, null, 2)}
+
+【原始预算分配】
+${JSON.stringify(plan.budget_breakdown, null, 2)}
+
+【优化要求】
+请从以下几个方面进行全面优化：
+
+1. **路线优化**：调整景点顺序，减少往返路程，优化交通路线
+2. **时间优化**：合理安排游览时间，避免行程过紧或过松
+3. **预算优化**：在总预算不变的前提下，优化各项开支分配，提高性价比
+4. **体验优化**：增加或替换更符合用户偏好的景点和活动
+5. **实用建议**：补充更详细的游玩技巧和注意事项
+
+【返回格式要求】
+请严格按照以下 JSON 格式返回优化后的完整数据：
+
+{
+  "title": "行程标题（可以优化得更吸引人）",
+  "summary": "【必填】优化后的行程概要说明（200-300字，突出优化亮点和行程特色）",
+  "itinerary": [
+    {
+      "day": 1,
+      "date": "YYYY-MM-DD",
+      "theme": "当日主题",
+      "activities": [
+        {
+          "time": "HH:MM",
+          "type": "景点/餐厅/交通/购物/休闲",
+          "name": "名称",
+          "description": "详细描述（50-100字）",
+          "address": "详细地址",
+          "estimatedCost": 数字,
+          "duration": 分钟数,
+          "tips": "游玩建议和注意事项"
+        }
+      ],
+      "accommodation": {
+        "name": "酒店名称",
+        "type": "酒店类型",
+        "address": "酒店地址",
+        "price": 价格
+      }
+    }
+  ],
+  "budget": {
+    "transportation": 交通费用,
+    "accommodation": 住宿费用,
+    "food": 餐饮费用,
+    "activities": 门票和活动费用,
+    "shopping": 购物预算,
+    "other": 其他费用,
+    "total": 总计（必须等于原始预算）
+  },
+  "tips": [
+    "【必填】优化后的实用建议1（具体明确）",
+    "【必填】优化后的实用建议2（具体明确）",
+    "至少提供 5-8 条建议"
+  ]
+}
+
+【重要提醒】
+- summary 字段是必填项，必须提供详细的行程概要说明
+- tips 必须提供 5-8 条实用的旅行建议
+- 所有活动的 description 和 tips 都要详细具体
+- 总预算必须保持不变（¥${request.budget}）
+- 确保返回完整的 JSON 数据，不要省略任何字段`
     
     try {
       const response = await axios.post(

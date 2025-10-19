@@ -101,18 +101,6 @@
         </div>
 
         <div v-if="plan" class="plan-content">
-          <!-- 版本标识 -->
-          <div v-if="hasOptimized" class="version-badge">
-            <div v-if="showingOptimized" class="badge optimized">
-              <span class="badge-icon">✨</span>
-              <span class="badge-text">查看优化版本</span>
-            </div>
-            <div v-else class="badge original">
-              <span class="badge-icon">📋</span>
-              <span class="badge-text">查看原始版本</span>
-            </div>
-          </div>
-
           <!-- 行程概要 -->
           <div class="summary-card">
             <h3>行程概要</h3>
@@ -778,55 +766,6 @@ const getTypeIcon = (type) => {
   padding: 20px;
 }
 
-/* 版本标识 */
-.version-badge {
-  margin-bottom: 20px;
-  display: flex;
-  justify-content: center;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  animation: fadeIn 0.3s ease;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.badge.optimized {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.badge.original {
-  background: #f5f5f5;
-  color: #666;
-  border: 2px solid #e0e0e0;
-}
-
-.badge-icon {
-  font-size: 18px;
-}
-
-.badge-text {
-  font-size: 14px;
-}
-
 .summary-card,
 .budget-card,
 .tips-card {
@@ -1100,11 +1039,6 @@ const getTypeIcon = (type) => {
   .toggle-btn {
     font-size: 13px;
     padding: 8px 12px;
-  }
-
-  .badge {
-    font-size: 13px;
-    padding: 8px 16px;
   }
 
   .message-toast {
