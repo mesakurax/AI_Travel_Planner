@@ -1,5 +1,18 @@
 <template>
   <div class="plan-list-container">
+    <!-- 自定义确认对话框 -->
+    <ConfirmDialog
+      ref="confirmDialog"
+      :title="dialogConfig.title"
+      :message="dialogConfig.message"
+      :icon="dialogConfig.icon"
+      :type="dialogConfig.type"
+      :confirmText="dialogConfig.confirmText"
+      :cancelText="dialogConfig.cancelText"
+      @confirm="dialogConfig.onConfirm"
+      @cancel="dialogConfig.onCancel"
+    />
+
     <!-- 顶部导航 -->
     <nav class="plan-nav">
       <div class="nav-content">
@@ -106,16 +119,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTravelStore } from '@/stores/travel'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const router = useRouter()
 const travelStore = useTravelStore()
 
+const confirmDialog = ref(null)
 const plans = ref([])
 const loading = ref(false)
 const error = ref(null)
+
+const dialogConfig = reactive({
+  title: '确认操作',
+  message: '',
+  icon: '❓',
+  type: 'default', // 'default' | 'warning' | 'danger'
+  confirmText: '确定',
+  cancelText: '取消',
+  onConfirm: () => {},
+  onCancel: () => {}
+})
 
 // 加载行程列表
 const loadPlans = async () => {
@@ -149,18 +175,39 @@ const goBack = () => {
 }
 
 // 删除行程
-const deletePlan = async (planId) => {
-  if (!confirm('确定要删除这个行程吗？')) {
-    return
+const deletePlan = (planId) => {
+  const plan = plans.value.find(p => p.id === planId)
+  const destination = plan?.destination || '该行程'
+  
+  // 配置对话框
+  dialogConfig.title = '删除行程'
+  dialogConfig.message = `确定要删除"${destination}"的行程吗？删除后无法恢复。`
+  dialogConfig.icon = '🗑️'
+  dialogConfig.type = 'danger'
+  dialogConfig.confirmText = '删除'
+  dialogConfig.cancelText = '取消'
+  dialogConfig.onConfirm = async () => {
+    await performDelete(planId)
   }
+  dialogConfig.onCancel = () => {
+    // 取消删除，不做任何事
+  }
+  
+  // 显示对话框
+  confirmDialog.value?.show()
+}
 
+const performDelete = async (planId) => {
+  loading.value = true
+  
   const result = await travelStore.deletePlan(planId)
   
   if (result.success) {
     // 重新加载列表
     await loadPlans()
   } else {
-    alert('删除失败：' + result.error)
+    error.value = '删除失败：' + result.error
+    loading.value = false
   }
 }
 

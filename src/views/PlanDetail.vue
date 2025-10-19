@@ -1,5 +1,18 @@
 <template>
   <div class="plan-detail">
+    <!-- 自定义确认对话框（全局，不受条件影响） -->
+    <ConfirmDialog
+      ref="confirmDialog"
+      :title="dialogConfig.title"
+      :message="dialogConfig.message"
+      :icon="dialogConfig.icon"
+      :type="dialogConfig.type"
+      :confirmText="dialogConfig.confirmText"
+      :cancelText="dialogConfig.cancelText"
+      @confirm="dialogConfig.onConfirm"
+      @cancel="dialogConfig.onCancel"
+    />
+
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-overlay">
       <div class="loading-content">
@@ -42,7 +55,9 @@
         <div class="plan-header">
           <button @click="goBack" class="back-btn">← 返回</button>
           <h2>{{ plan?.title || '加载中...' }}</h2>
-          <div class="actions">
+          
+          <!-- 未优化状态：显示优化按钮 -->
+          <div v-if="!hasOptimized" class="actions">
             <button 
               @click="optimizePlan" 
               class="action-btn" 
@@ -51,15 +66,53 @@
             >
               <span v-if="optimizing" class="btn-spinner"></span>
               <span v-else>✨</span>
-              {{ optimizing ? '优化中...' : '优化行程' }}
+              {{ optimizing ? '优化中...请不要离开当前页面' : '优化行程' }}
             </button>
-            <button @click="savePlan" class="action-btn primary" :disabled="loading || optimizing">
-              💾 保存
-            </button>
+          </div>
+
+          <!-- 已优化状态：显示对比和操作按钮 -->
+          <div v-else class="actions-optimized">
+            <!-- 版本切换按钮 -->
+            <div class="version-toggle">
+              <button 
+                @click="showingOptimized = false" 
+                :class="['toggle-btn', { active: !showingOptimized }]"
+              >
+                📋 原始版本
+              </button>
+              <button 
+                @click="showingOptimized = true" 
+                :class="['toggle-btn', { active: showingOptimized }]"
+              >
+                ✨ 优化版本
+              </button>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="action-buttons">
+              <button @click="discardOptimization" class="action-btn btn-discard">
+                放弃优化
+              </button>
+              <button @click="applyOptimization" class="action-btn btn-apply">
+                应用优化
+              </button>
+            </div>
           </div>
         </div>
 
         <div v-if="plan" class="plan-content">
+          <!-- 版本标识 -->
+          <div v-if="hasOptimized" class="version-badge">
+            <div v-if="showingOptimized" class="badge optimized">
+              <span class="badge-icon">✨</span>
+              <span class="badge-text">查看优化版本</span>
+            </div>
+            <div v-else class="badge original">
+              <span class="badge-icon">📋</span>
+              <span class="badge-text">查看原始版本</span>
+            </div>
+          </div>
+
           <!-- 行程概要 -->
           <div class="summary-card">
             <h3>行程概要</h3>
@@ -172,23 +225,48 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTravelStore } from '@/stores/travel'
 import TravelMap from '@/components/TravelMap.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
 const travelStore = useTravelStore()
 
 const mapRef = ref(null)
+const confirmDialog = ref(null)
 const loading = ref(true)
 const error = ref(null)
 const optimizing = ref(false)
 const message = ref('')
 const messageType = ref('') // 'success' | 'error' | 'info'
 
-const plan = computed(() => travelStore.currentPlan)
+// 优化相关状态
+const hasOptimized = ref(false) // 是否已优化
+const showingOptimized = ref(false) // 当前是否显示优化版本
+const originalPlan = ref(null) // 原始行程
+const optimizedPlan = ref(null) // 优化后的行程
+
+const dialogConfig = reactive({
+  title: '确认操作',
+  message: '',
+  icon: '❓',
+  type: 'default', // 'default' | 'warning' | 'danger'
+  confirmText: '确定',
+  cancelText: '取消',
+  onConfirm: () => {},
+  onCancel: () => {}
+})
+
+// 当前显示的行程（原始或优化版本）
+const plan = computed(() => {
+  if (hasOptimized.value && showingOptimized.value) {
+    return optimizedPlan.value
+  }
+  return originalPlan.value || travelStore.currentPlan
+})
 
 // 所有标记点
 const allMarkers = computed(() => {
@@ -237,6 +315,9 @@ onMounted(async () => {
       throw new Error(result.error || '加载计划失败')
     }
     
+    // 保存原始行程
+    originalPlan.value = JSON.parse(JSON.stringify(travelStore.currentPlan))
+    
     // 等待一下让数据渲染
     setTimeout(() => {
       loading.value = false
@@ -268,21 +349,41 @@ const showMessage = (msg, type = 'info') => {
   }, 3000)
 }
 
-const optimizePlan = async () => {
+const optimizePlan = () => {
   if (optimizing.value) return
   
-  if (!confirm('确定要优化这个行程吗？AI 将重新调整路线和时间安排。')) {
-    return
+  // 配置对话框
+  dialogConfig.title = '优化行程'
+  dialogConfig.message = 'AI 将重新分析并调整路线、时间安排和预算分配，使行程更加合理。确定要继续吗？'
+  dialogConfig.icon = '✨'
+  dialogConfig.type = 'warning'
+  dialogConfig.confirmText = '开始优化'
+  dialogConfig.cancelText = '取消'
+  dialogConfig.onConfirm = performOptimization
+  dialogConfig.onCancel = () => {
+    // 取消操作，不做任何事
   }
   
+  // 显示对话框
+  confirmDialog.value?.show()
+}
+
+const performOptimization = async () => {
   optimizing.value = true
-  showMessage('正在优化行程，请稍候...', 'info')
+  showMessage('AI 正在分析行程，重新规划路线...', 'info')
   
   try {
+    // 使用原始行程进行优化
+    const planToOptimize = originalPlan.value || travelStore.currentPlan
     const result = await travelStore.optimizePlan()
     
     if (result.success) {
-      showMessage('✅ 行程优化成功！', 'success')
+      // 保存优化后的行程
+      optimizedPlan.value = JSON.parse(JSON.stringify(result.plan))
+      hasOptimized.value = true
+      showingOptimized.value = true // 自动切换到优化版本
+      
+      showMessage('✅ 优化完成！请查看对比效果', 'success')
     } else {
       throw new Error(result.error || '优化失败')
     }
@@ -294,29 +395,70 @@ const optimizePlan = async () => {
   }
 }
 
-const savePlan = async () => {
-  if (!plan.value || !plan.value.id) {
-    showMessage('❌ 无法保存：计划数据无效', 'error')
+// 放弃优化
+const discardOptimization = () => {
+  dialogConfig.title = '放弃优化'
+  dialogConfig.message = '确定要放弃优化后的行程吗？优化结果将被丢弃。'
+  dialogConfig.icon = '❌'
+  dialogConfig.type = 'warning'
+  dialogConfig.confirmText = '放弃'
+  dialogConfig.cancelText = '取消'
+  dialogConfig.onConfirm = () => {
+    hasOptimized.value = false
+    showingOptimized.value = false
+    optimizedPlan.value = null
+    showMessage('已放弃优化，恢复原始行程', 'info')
+  }
+  
+  confirmDialog.value?.show()
+}
+
+// 应用优化
+const applyOptimization = () => {
+  dialogConfig.title = '应用优化'
+  dialogConfig.message = '确定要应用优化后的行程吗？原始行程将被替换，此操作可以通过重新加载恢复。'
+  dialogConfig.icon = '✅'
+  dialogConfig.type = 'default'
+  dialogConfig.confirmText = '应用'
+  dialogConfig.cancelText = '取消'
+  dialogConfig.onConfirm = performApplyOptimization
+  
+  confirmDialog.value?.show()
+}
+
+const performApplyOptimization = async () => {
+  if (!optimizedPlan.value || !optimizedPlan.value.id) {
+    showMessage('❌ 应用失败：优化数据无效', 'error')
     return
   }
   
   try {
-    showMessage('正在保存...', 'info')
+    showMessage('正在保存优化后的行程...', 'info')
     
-    const result = await travelStore.updatePlan(plan.value.id, {
-      itinerary: plan.value.itinerary,
-      budget_breakdown: plan.value.budget_breakdown,
-      tips: plan.value.tips
+    const result = await travelStore.updatePlan(optimizedPlan.value.id, {
+      itinerary: optimizedPlan.value.itinerary,
+      budget_breakdown: optimizedPlan.value.budget_breakdown,
+      tips: optimizedPlan.value.tips,
+      summary: optimizedPlan.value.summary
     })
     
     if (result.success) {
-      showMessage('✅ 保存成功！', 'success')
+      // 更新原始行程为优化后的行程
+      originalPlan.value = JSON.parse(JSON.stringify(optimizedPlan.value))
+      travelStore.setCurrentPlan(optimizedPlan.value)
+      
+      // 重置优化状态
+      hasOptimized.value = false
+      showingOptimized.value = false
+      optimizedPlan.value = null
+      
+      showMessage('✅ 优化已应用并保存！', 'success')
     } else {
       throw new Error(result.error || '保存失败')
     }
   } catch (err) {
-    console.error('保存失败:', err)
-    showMessage(`❌ 保存失败: ${err.message}`, 'error')
+    console.error('应用优化失败:', err)
+    showMessage(`❌ 应用失败: ${err.message}`, 'error')
   }
 }
 
@@ -508,6 +650,58 @@ const getTypeIcon = (type) => {
   gap: 12px;
 }
 
+.actions-optimized {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  max-width: 600px;
+}
+
+/* 版本切换按钮组 */
+.version-toggle {
+  display: flex;
+  background: #f5f5f5;
+  border-radius: 10px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.toggle-btn {
+  flex: 1;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.toggle-btn:hover {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.toggle-btn.active {
+  background: white;
+  color: #667eea;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+}
+
+/* 操作按钮组 */
+.action-buttons {
+  display: flex;
+  gap: 12px;
+}
+
 .action-btn {
   padding: 10px 20px;
   border: 1px solid #667eea;
@@ -520,22 +714,12 @@ const getTypeIcon = (type) => {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex: 1;
 }
 
 .action-btn:hover:not(:disabled) {
   background: #f5f7ff;
   transform: translateY(-1px);
-}
-
-.action-btn.primary {
-  background: #667eea;
-  color: white;
-}
-
-.action-btn.primary:hover:not(:disabled) {
-  background: #5568d3;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .action-btn:disabled {
@@ -547,6 +731,31 @@ const getTypeIcon = (type) => {
   background: #fff3cd;
   color: #856404;
   border: 1px solid #ffc107;
+}
+
+/* 放弃优化按钮 */
+.btn-discard {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.btn-discard:hover:not(:disabled) {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  transform: translateY(-1px);
+}
+
+/* 应用优化按钮 */
+.btn-apply {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+}
+
+.btn-apply:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 /* 按钮内的旋转加载图标 */
@@ -567,6 +776,55 @@ const getTypeIcon = (type) => {
 
 .plan-content {
   padding: 20px;
+}
+
+/* 版本标识 */
+.version-badge {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.badge.optimized {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.badge.original {
+  background: #f5f5f5;
+  color: #666;
+  border: 2px solid #e0e0e0;
+}
+
+.badge-icon {
+  font-size: 18px;
+}
+
+.badge-text {
+  font-size: 14px;
 }
 
 .summary-card,
@@ -803,6 +1061,57 @@ const getTypeIcon = (type) => {
   .map-section {
     height: 400px;
     position: relative;
+  }
+
+  .actions-optimized {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .plan-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .plan-header h2 {
+    font-size: 18px;
+  }
+
+  .actions,
+  .actions-optimized {
+    width: 100%;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .version-toggle {
+    width: 100%;
+  }
+
+  .toggle-btn {
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .badge {
+    font-size: 13px;
+    padding: 8px 16px;
+  }
+
+  .message-toast {
+    left: 16px;
+    right: 16px;
+    transform: none;
+    max-width: none;
   }
 }
 </style>
