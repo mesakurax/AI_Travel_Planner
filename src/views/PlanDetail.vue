@@ -110,6 +110,10 @@
                 <span class="value">{{ plan.destination }}</span>
               </div>
               <div class="info-item">
+                <span class="label">📅 出发日期:</span>
+                <span class="value">{{ displayStartDate }}</span>
+              </div>
+              <div class="info-item">
                 <span class="label">📅 天数:</span>
                 <span class="value">{{ plan.days }}天</span>
               </div>
@@ -161,7 +165,7 @@
             <div v-for="day in plan.itinerary" :key="day.day" class="day-card">
               <div class="day-header">
                 <h3>第 {{ day.day }} 天</h3>
-                <span class="date">{{ day.date }}</span>
+                <span class="date">{{ getDayDate(day.day) }}</span>
               </div>
 
               <div class="activities-list">
@@ -284,6 +288,47 @@ const allMarkers = computed(() => {
 const routePoints = computed(() => {
   return allMarkers.value.map(m => ({ lng: m.lng, lat: m.lat }))
 })
+
+// 显示的出发日期（如果没有指定则生成随机日期）
+const displayStartDate = computed(() => {
+  // 如果计划中有 start_date 或 request.startDate，则使用它
+  if (plan.value?.start_date) {
+    return plan.value.start_date
+  }
+  if (plan.value?.request?.startDate) {
+    return plan.value.request.startDate
+  }
+  
+  // 否则生成一个随机日期：当天 + 15-60 天
+  const today = new Date()
+  const randomDays = Math.floor(Math.random() * (60 - 15 + 1)) + 15 // 15-60之间的随机数
+  const futureDate = new Date(today)
+  futureDate.setDate(today.getDate() + randomDays)
+  
+  // 格式化为 YYYY-MM-DD
+  const year = futureDate.getFullYear()
+  const month = String(futureDate.getMonth() + 1).padStart(2, '0')
+  const day = String(futureDate.getDate()).padStart(2, '0')
+  
+  return `${year}-${month}-${day}`
+})
+
+// 获取每一天的实际日期
+const getDayDate = (dayNumber) => {
+  const startDateStr = displayStartDate.value
+  const startDate = new Date(startDateStr)
+  
+  // 第一天就是出发日期，第二天是出发日期+1天，以此类推
+  const currentDate = new Date(startDate)
+  currentDate.setDate(startDate.getDate() + (dayNumber - 1))
+  
+  // 格式化为 YYYY-MM-DD
+  const year = currentDate.getFullYear()
+  const month = String(currentDate.getMonth() + 1).padStart(2, '0')
+  const day = String(currentDate.getDate()).padStart(2, '0')
+  
+  return `${year}-${month}-${day}`
+}
 
 onMounted(async () => {
   const planId = route.params.id
