@@ -215,7 +215,33 @@ ${withChildren ? '带孩子同行' : ''}
    * 优化行程建议
    */
   async optimizeItinerary(plan) {
-    const prompt = `请优化以下旅行计划，使行程更加合理：\n\n${JSON.stringify(plan, null, 2)}\n\n请返回优化后的完整 JSON 数据。`
+    // 构建请求对象
+    const request = plan.request || {
+      destination: plan.destination,
+      days: plan.days,
+      budget: plan.budget,
+      travelers: plan.travelers || 1,
+      preferences: plan.preferences ? (typeof plan.preferences === 'string' ? plan.preferences.split(',') : plan.preferences) : [],
+      withChildren: plan.with_children || false,
+      startDate: plan.start_date || null
+    }
+    
+    const prompt = `请优化以下旅行计划，重点考虑：
+1. 景点之间的距离和交通便利性
+2. 时间安排的合理性（避免赶路）
+3. 预算分配的优化
+4. 考虑用户偏好
+
+原计划：
+${JSON.stringify({
+  destination: request.destination,
+  days: request.days,
+  budget: request.budget,
+  itinerary: plan.itinerary,
+  budget_breakdown: plan.budget_breakdown
+}, null, 2)}
+
+请返回优化后的完整 JSON 数据，格式与原计划相同。`
     
     try {
       const response = await axios.post(
@@ -223,10 +249,14 @@ ${withChildren ? '带孩子同行' : ''}
         {
           model: this.model,
           messages: [
-            { role: 'system', content: '你是旅行规划专家，请优化行程安排。' },
+            { 
+              role: 'system', 
+              content: '你是专业的旅行规划师，擅长优化行程路线和时间安排。请以 JSON 格式返回优化后的行程。' 
+            },
             { role: 'user', content: prompt }
           ],
-          temperature: 0.5
+          temperature: 0.5,
+          max_tokens: 4000
         },
         {
           headers: {
@@ -237,10 +267,19 @@ ${withChildren ? '带孩子同行' : ''}
       )
 
       const content = response.data.choices[0].message.content
-      return this.parseTravelPlan(content, plan.request)
+      const optimized = this.parseTravelPlan(content, request)
+      
+      // 保留原计划的 ID 和其他元数据
+      return {
+        ...plan,
+        itinerary: optimized.itinerary,
+        budget_breakdown: optimized.budget,
+        tips: optimized.tips,
+        summary: optimized.summary
+      }
     } catch (error) {
       console.error('优化失败:', error)
-      return plan // 返回原计划
+      throw new Error(error.response?.data?.error?.message || '优化服务暂时不可用，请稍后重试')
     }
   }
 }

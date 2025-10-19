@@ -32,14 +32,28 @@
 
       <!-- 右侧行程详情 -->
       <div class="itinerary-section">
+        <!-- 消息提示 -->
+        <transition name="message">
+          <div v-if="message" :class="['message-toast', messageType]">
+            <span class="message-text">{{ message }}</span>
+          </div>
+        </transition>
+
         <div class="plan-header">
           <button @click="goBack" class="back-btn">← 返回</button>
           <h2>{{ plan?.title || '加载中...' }}</h2>
           <div class="actions">
-            <button @click="optimizePlan" class="action-btn" :disabled="loading">
-              ✨ 优化行程
+            <button 
+              @click="optimizePlan" 
+              class="action-btn" 
+              :disabled="loading || optimizing"
+              :class="{ optimizing: optimizing }"
+            >
+              <span v-if="optimizing" class="btn-spinner"></span>
+              <span v-else>✨</span>
+              {{ optimizing ? '优化中...' : '优化行程' }}
             </button>
-            <button @click="savePlan" class="action-btn primary">
+            <button @click="savePlan" class="action-btn primary" :disabled="loading || optimizing">
               💾 保存
             </button>
           </div>
@@ -170,6 +184,9 @@ const travelStore = useTravelStore()
 const mapRef = ref(null)
 const loading = ref(true)
 const error = ref(null)
+const optimizing = ref(false)
+const message = ref('')
+const messageType = ref('') // 'success' | 'error' | 'info'
 
 const plan = computed(() => travelStore.currentPlan)
 
@@ -240,15 +257,67 @@ const goBack = () => {
   router.push('/plans')
 }
 
+const showMessage = (msg, type = 'info') => {
+  message.value = msg
+  messageType.value = type
+  
+  // 3秒后自动隐藏
+  setTimeout(() => {
+    message.value = ''
+    messageType.value = ''
+  }, 3000)
+}
+
 const optimizePlan = async () => {
-  const optimizing = ref(true)
-  await travelStore.optimizePlan()
-  optimizing.value = false
+  if (optimizing.value) return
+  
+  if (!confirm('确定要优化这个行程吗？AI 将重新调整路线和时间安排。')) {
+    return
+  }
+  
+  optimizing.value = true
+  showMessage('正在优化行程，请稍候...', 'info')
+  
+  try {
+    const result = await travelStore.optimizePlan()
+    
+    if (result.success) {
+      showMessage('✅ 行程优化成功！', 'success')
+    } else {
+      throw new Error(result.error || '优化失败')
+    }
+  } catch (err) {
+    console.error('优化失败:', err)
+    showMessage(`❌ 优化失败: ${err.message}`, 'error')
+  } finally {
+    optimizing.value = false
+  }
 }
 
 const savePlan = async () => {
-  // 已在创建时保存，这里可以做更新
-  alert('计划已保存！')
+  if (!plan.value || !plan.value.id) {
+    showMessage('❌ 无法保存：计划数据无效', 'error')
+    return
+  }
+  
+  try {
+    showMessage('正在保存...', 'info')
+    
+    const result = await travelStore.updatePlan(plan.value.id, {
+      itinerary: plan.value.itinerary,
+      budget_breakdown: plan.value.budget_breakdown,
+      tips: plan.value.tips
+    })
+    
+    if (result.success) {
+      showMessage('✅ 保存成功！', 'success')
+    } else {
+      throw new Error(result.error || '保存失败')
+    }
+  } catch (err) {
+    console.error('保存失败:', err)
+    showMessage(`❌ 保存失败: ${err.message}`, 'error')
+  }
 }
 
 const highlightLocation = (activity) => {
@@ -349,6 +418,64 @@ const getTypeIcon = (type) => {
   background: white;
   overflow-y: auto;
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+/* 消息提示框 */
+.message-toast {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.message-toast.info {
+  background: #e3f2fd;
+  color: #1976d2;
+  border: 1px solid #90caf9;
+}
+
+.message-toast.success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #81c784;
+}
+
+.message-toast.error {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
+.message-text {
+  flex: 1;
+}
+
+/* 消息动画 */
+.message-enter-active,
+.message-leave-active {
+  transition: all 0.3s ease;
+}
+
+.message-enter-from {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
+}
+
+.message-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-20px);
 }
 
 .plan-header {
@@ -390,10 +517,14 @@ const getTypeIcon = (type) => {
   cursor: pointer;
   font-size: 14px;
   transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.action-btn:hover {
+.action-btn:hover:not(:disabled) {
   background: #f5f7ff;
+  transform: translateY(-1px);
 }
 
 .action-btn.primary {
@@ -401,9 +532,37 @@ const getTypeIcon = (type) => {
   color: white;
 }
 
+.action-btn.primary:hover:not(:disabled) {
+  background: #5568d3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
 .action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.action-btn.optimizing {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+}
+
+/* 按钮内的旋转加载图标 */
+.btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: btn-spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes btn-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .plan-content {
