@@ -6,6 +6,9 @@ WORKDIR /app
 # 复制 package 文件
 COPY package*.json ./
 
+# 设置阿里云镜像源加速 npm 安装
+RUN npm config set registry https://registry.npmmirror.com
+
 # 安装依赖
 RUN npm ci
 
