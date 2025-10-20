@@ -98,10 +98,12 @@ class AIService {
   /**
    * 生成旅行计划
    */
-  async generateTravelPlan(travelRequest) {
+  async generateTravelPlan(travelRequest, onProgress) {
     const prompt = this.buildTravelPlanPrompt(travelRequest)
     
     try {
+      if (onProgress) onProgress({ stage: 'ai', message: '正在连接 AI 服务...', progress: 10 })
+      
       const response = await axios.post(
         `${this.baseURL}/chat/completions`,
         {
@@ -117,7 +119,7 @@ class AIService {
             }
           ],
           temperature: 0.7,
-          max_tokens: 12000 // 充分利用模型16K输出能力，生成详细行程
+          max_tokens: 12000
         },
         {
           headers: {
@@ -127,8 +129,12 @@ class AIService {
         }
       )
 
+      if (onProgress) onProgress({ stage: 'ai', message: 'AI 生成完成，正在解析...', progress: 40 })
+      
       const content = response.data.choices[0].message.content
-      return this.parseTravelPlan(content, travelRequest)
+      const result = this.parseTravelPlan(content, travelRequest)
+      
+      return result
     } catch (error) {
       console.error('AI 生成失败:', error)
       throw new Error('生成旅行计划失败，请重试')
@@ -301,7 +307,7 @@ class AIService {
       preferences: plan.preferences ? (typeof plan.preferences === 'string' ? plan.preferences.split(',') : plan.preferences) : []
     }
     
-    const prompt = `作为专业的旅行规划师，请优化以下旅行计划。
+    const prompt = `作为专业的旅行规划师,请优化以下旅行计划。
 
 【原始行程信息】
 目的地：${request.destination}
@@ -395,7 +401,7 @@ ${JSON.stringify(plan.budget_breakdown, null, 2)}
             { role: 'user', content: prompt }
           ],
           temperature: 0.5,
-          max_tokens: 12000 // 优化行程需要足够的token生成完整内容
+          max_tokens: 12000
         },
         {
           headers: {

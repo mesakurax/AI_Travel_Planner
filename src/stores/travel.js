@@ -20,37 +20,57 @@ export const useTravelStore = defineStore('travel', () => {
   /**
    * 创建新的旅行计划
    */
-  const createPlan = async (travelRequest) => {
+  const createPlan = async (travelRequest, onProgress) => {
     try {
       loading.value = true
       error.value = null
 
       // 1. 使用 AI 生成计划
-      const aiPlan = await aiService.generateTravelPlan(travelRequest)
+      if (onProgress) onProgress({ stage: 'ai', message: '🤖 AI 正在生成行程...', progress: 10 })
+      
+      const aiPlan = await aiService.generateTravelPlan(travelRequest, onProgress)
       
       // 2. 地理编码 - 获取目的地坐标
+      if (onProgress) onProgress({ stage: 'geocode', message: '🗺️ 正在获取地理位置...', progress: 50 })
+      
       try {
         const location = await amapService.geocode(travelRequest.destination)
         aiPlan.destinationLocation = location
       } catch (geoError) {
-        console.warn('地理编码失败:', geoError)
+        console.warn('目的地地理编码失败:', geoError)
       }
 
-      // 3. 为每个活动获取地理坐标
+      // 3. 为每个活动获取地理坐标 - 并行处理，带超时
+      const geocodePromises = []
+      const geocodeTimeout = 3000
+      
       for (const day of aiPlan.itinerary) {
         for (const activity of day.activities) {
           if (activity.address) {
-            try {
-              const loc = await amapService.geocode(activity.address)
-              activity.location = loc
-            } catch (err) {
-              console.warn(`地址解析失败: ${activity.address}`)
-            }
+            const geocodeWithTimeout = Promise.race([
+              amapService.geocode(activity.address, travelRequest.destination)
+                .then(loc => {
+                  activity.location = loc
+                  return { success: true }
+                })
+                .catch(() => ({ success: false })),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('超时')), geocodeTimeout)
+              )
+            ]).catch(() => ({ success: false }))
+            
+            geocodePromises.push(geocodeWithTimeout)
           }
         }
       }
 
+      if (geocodePromises.length > 0) {
+        await Promise.all(geocodePromises)
+      }
+
       // 4. 保存到 Supabase
+      if (onProgress) onProgress({ stage: 'save', message: '💾 正在保存行程...', progress: 80 })
+      
       const { data: userData } = await supabase.auth.getUser()
       if (userData.user) {
         const { data, error: saveError } = await supabase
@@ -82,6 +102,8 @@ export const useTravelStore = defineStore('travel', () => {
       currentPlan.value = aiPlan
       plans.value.unshift(aiPlan)
 
+      if (onProgress) onProgress({ stage: 'complete', message: '✨ 行程创建完成！', progress: 100 })
+      
       return { success: true, plan: aiPlan }
     } catch (err) {
       console.error('创建计划失败:', err)

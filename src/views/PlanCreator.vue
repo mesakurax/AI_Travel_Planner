@@ -16,6 +16,12 @@
       <div v-if="loading" class="loading-state">
         <div class="loading-spinner"></div>
         <p>{{ loadingMessage }}</p>
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: progressValue + '%' }"></div>
+          </div>
+          <span class="progress-text">{{ progressValue }}%</span>
+        </div>
       </div>
 
       <div v-if="error" class="error-state">
@@ -41,7 +47,16 @@ const voiceInput = ref(null)
 const loading = ref(false)
 const error = ref('')
 const loadingMessage = ref('正在分析您的需求...')
+const progressValue = ref(0)
 const lastInput = ref('')
+
+/**
+ * 更新进度
+ */
+const updateProgress = ({ stage, message, progress }) => {
+  loadingMessage.value = message
+  progressValue.value = progress
+}
 
 /**
  * 处理用户输入
@@ -50,13 +65,14 @@ const handleInput = async (text) => {
   lastInput.value = text
   error.value = ''
   loading.value = true
+  progressValue.value = 0
 
   try {
     // 第一步：使用 AI 预处理，提取结构化信息
     loadingMessage.value = '🤖 AI 正在理解您的需求...'
-    const parsedRequest = await aiService.parseUserInput(text)
+    progressValue.value = 5
     
-    console.log('AI 解析结果:', parsedRequest)
+    const parsedRequest = await aiService.parseUserInput(text)
     
     // 检查置信度，如果太低则提示用户
     if (parsedRequest.confidence < 0.5) {
@@ -71,11 +87,11 @@ const handleInput = async (text) => {
     }
 
     // 第二步：使用结构化的数据生成旅行计划
-    loadingMessage.value = `✨ 正在为您规划 ${parsedRequest.destination} ${parsedRequest.days}天之旅...`
-    const result = await travelStore.createPlan(parsedRequest)
+    const result = await travelStore.createPlan(parsedRequest, updateProgress)
 
     if (result.success) {
       loadingMessage.value = '🎉 计划生成成功！正在跳转...'
+      progressValue.value = 100
       
       // 清空输入
       if (voiceInput.value) {
@@ -93,6 +109,7 @@ const handleInput = async (text) => {
     console.error('处理输入失败:', err)
     error.value = err.message
     loading.value = false
+    progressValue.value = 0
   }
 }
 
@@ -188,7 +205,38 @@ const goBack = () => {
 .loading-state p {
   font-size: 16px;
   color: #666;
-  margin: 0;
+  margin: 0 0 20px 0;
+}
+
+.progress-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #667eea;
+  min-width: 45px;
+  text-align: right;
 }
 
 .error-state {
