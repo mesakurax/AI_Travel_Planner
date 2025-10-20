@@ -18,7 +18,7 @@
 
 **前端**: Vue 3 + Vite + Pinia + Vue Router  
 **后端**: Supabase (PostgreSQL + Auth + Storage)  
-**AI**: 通义千问 / OpenAI / DeepSeek / Ollama  
+**AI**: 通义千问  
 **地图**: 高德地图 API  
 **语音**: 科大讯飞 WebSocket API  
 **部署**: Docker + GitHub Actions
@@ -27,13 +27,50 @@
 
 ### 方式 1: Docker 快速部署（推荐）
 
-```bash
-# 拉取并运行镜像（需要先配置 .env 文件）
-docker pull ghcr.io/mesakurax/ai_travel_planner:main
-docker run -d -p 3000:80 --env-file .env ghcr.io/mesakurax/ai_travel_planner:main
+首先，在本地创建 `.env` 文件并填入你的 API 密钥：
 
-# 或使用 Docker Compose
-docker-compose up -d
+```powershell
+# Windows PowerShell - 创建 .env 文件
+@"
+VITE_AI_PROVIDER=qwen
+VITE_AI_API_KEY=sk-你的通义千问密钥
+VITE_AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+VITE_AI_MODEL=qwen-plus
+VITE_SUPABASE_URL=https://你的项目.supabase.co
+VITE_SUPABASE_ANON_KEY=你的Supabase匿名密钥
+VITE_XFYUN_APP_ID=你的讯飞APPID
+VITE_XFYUN_API_SECRET=你的讯飞APISecret
+VITE_XFYUN_API_KEY=你的讯飞APIKey
+VITE_AMAP_KEY=你的高德地图Key
+VITE_AMAP_SECURITY_CODE=你的高德安全密钥
+"@ | Out-File -Encoding utf8 .env
+```
+
+```bash
+# Linux/Mac - 创建 .env 文件
+cat > .env << 'EOF'
+VITE_AI_PROVIDER=qwen
+VITE_AI_API_KEY=sk-你的通义千问密钥
+VITE_AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+VITE_AI_MODEL=qwen-plus
+VITE_SUPABASE_URL=https://你的项目.supabase.co
+VITE_SUPABASE_ANON_KEY=你的Supabase匿名密钥
+VITE_XFYUN_APP_ID=你的讯飞APPID
+VITE_XFYUN_API_SECRET=你的讯飞APISecret
+VITE_XFYUN_API_KEY=你的讯飞APIKey
+VITE_AMAP_KEY=你的高德地图Key
+VITE_AMAP_SECURITY_CODE=你的高德安全密钥
+EOF
+```
+
+然后，拉取并运行 Docker 镜像：
+
+```bash
+# 拉取最新镜像
+docker pull ghcr.io/mesakurax/ai_travel_planner:main
+
+# 使用 .env 文件启动容器
+docker run -d -p 3000:80 --env-file .env ghcr.io/mesakurax/ai_travel_planner:main
 ```
 
 访问 http://localhost:3000
