@@ -14,8 +14,8 @@ env:
   # GitHub Container Registry
   GHCR_REGISTRY: ghcr.io
   GHCR_IMAGE_NAME: ${{ github.repository }}
-  # 阿里云容器镜像服务（上海区域）
-  ALIYUN_REGISTRY: registry.cn-shanghai.aliyuncs.com
+  # 阿里云容器镜像服务（上海个人实例）
+  ALIYUN_REGISTRY: crpi-q6jikadfo82vknso.cn-shanghai.personal.cr.aliyuncs.com
   ALIYUN_NAMESPACE: ${{ secrets.ALIYUN_NAMESPACE }}
   ALIYUN_IMAGE_NAME: ai-travel-planner
 
