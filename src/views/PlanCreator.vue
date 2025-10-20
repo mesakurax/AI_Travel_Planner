@@ -1,6 +1,7 @@
 <template>
   <div class="plan-creator">
     <div class="creator-header">
+      <button @click="goBack" class="back-btn">← 返回</button>
       <h2>🧭 智能行程规划</h2>
       <p>用语音或文字描述您的旅行需求，AI 将为您生成详细的旅行计划</p>
     </div>
@@ -103,6 +104,13 @@ const retry = () => {
     handleInput(lastInput.value)
   }
 }
+
+/**
+ * 返回上一页
+ */
+const goBack = () => {
+  router.back()
+}
 </script>
 
 <style scoped>
@@ -113,8 +121,29 @@ const retry = () => {
 }
 
 .creator-header {
+  position: relative;
   text-align: center;
   margin-bottom: 40px;
+}
+
+.back-btn {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 10px 20px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  color: #333;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.back-btn:hover {
+  background: #f5f5f5;
+  border-color: #d0d0d0;
+  transform: translateX(-2px);
 }
 
 .creator-header h2 {

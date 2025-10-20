@@ -34,11 +34,28 @@
     <div v-else class="detail-container">
       <!-- 左侧地图 -->
       <div class="map-section">
+        <!-- 天数选择器 -->
+        <div class="day-selector">
+          <button 
+            v-for="(day, index) in currentItinerary" 
+            :key="getNormalizedDayNumber(day, index)"
+            @click="selectDay(getNormalizedDayNumber(day, index))"
+            :class="['day-btn', { active: selectedDay === getNormalizedDayNumber(day, index) }]"
+          >
+            第{{ getNormalizedDayNumber(day, index) }}天
+          </button>
+        </div>
+
+        <div v-if="geocoding" class="geocode-banner">
+          <span class="geocode-spinner"></span>
+          <span>正在定位当日景点...</span>
+        </div>
+        
         <TravelMap
           v-if="plan"
           ref="mapRef"
-          :markers="allMarkers"
-          :route="routePoints"
+          :markers="selectedDayMarkers"
+          :route="selectedDayRoute"
           @markerClick="handleMarkerClick"
         />
       </div>
@@ -217,11 +234,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTravelStore } from '@/stores/travel'
 import TravelMap from '@/components/TravelMap.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import amapService from '@/services/amap'
 
 const route = useRoute()
 const router = useRouter()
@@ -234,6 +252,60 @@ const error = ref(null)
 const optimizing = ref(false)
 const message = ref('')
 const messageType = ref('') // 'success' | 'error' | 'info'
+const selectedDay = ref(1) // 选中的天数，默认第1天
+const activityLocations = ref({})
+const geocoding = ref(false)
+
+const geocodeCache = new Map()
+
+const getNormalizedDayNumber = (day, index = 0) => {
+  if (!day) return index + 1
+  const raw = typeof day === 'object' ? day.day ?? day.Day ?? day.DAY : day
+  const number = Number(raw)
+  if (Number.isFinite(number) && number > 0) {
+    return Math.round(number)
+  }
+  return index + 1
+}
+
+const normalizeDayValue = (value) => {
+  const number = Number(value)
+  if (Number.isFinite(number) && number > 0) {
+    return Math.round(number)
+  }
+  return 1
+}
+
+const buildCityHint = (destination = '') => {
+  if (!destination) return ''
+  const cleaned = String(destination).trim()
+  if (!cleaned) return ''
+  // 如果包含逗号/空格，只取第一个词
+  const firstSegment = cleaned.split(/[\s,，]/)[0]
+  return firstSegment
+}
+
+const buildGeocodeCacheKey = (query, city) => {
+  return `${city || 'global'}__${query}`
+}
+
+const sanitizeKeyPart = (value = '') => {
+  return String(value).replace(/\s+/g, '-').slice(0, 60)
+}
+
+const buildActivityKey = (planData, dayNumber, index, activity) => {
+  const planId = planData?.id || planData?._id || planData?.plan_id || route.params.id || 'plan'
+  return [planId, dayNumber, index, sanitizeKeyPart(activity.name || ''), sanitizeKeyPart(activity.address || '')]
+    .filter(Boolean)
+    .join('-')
+}
+
+const setActivityLocation = (key, location) => {
+  activityLocations.value = {
+    ...activityLocations.value,
+    [key]: location
+  }
+}
 
 // 优化相关状态
 const hasOptimized = ref(false) // 是否已优化
@@ -260,17 +332,98 @@ const plan = computed(() => {
   return originalPlan.value || travelStore.currentPlan
 })
 
-// 所有标记点
+// 当前行程数据
+const currentItinerary = computed(() => {
+  return plan.value?.itinerary || []
+})
+
+const resolveActivityLocation = (planData, dayNumber, index, activity) => {
+  if (!activity) return null
+
+  if (activity.location?.lng && activity.location?.lat) {
+    return activity.location
+  }
+
+  const key = buildActivityKey(planData, dayNumber, index, activity)
+  const cached = activityLocations.value[key]
+  if (cached && (!activity.location || !activity.location.lng || !activity.location.lat)) {
+    activity.location = cached
+  }
+  return cached || null
+}
+
+// 选中天数的景点标记
+const selectedDayMarkers = computed(() => {
+  if (!plan.value || !plan.value.itinerary) {
+    console.log('[selectedDayMarkers] 无行程数据')
+    return []
+  }
+  
+  const targetDay = normalizeDayValue(selectedDay.value)
+  console.log('[selectedDayMarkers] 查找第', targetDay, '天的数据，当前选中:', selectedDay.value)
+  
+  let matchedDay = null
+  let matchedIndex = -1
+  
+  plan.value.itinerary.forEach((day, idx) => {
+    const normalizedDay = getNormalizedDayNumber(day, idx)
+    console.log(`  - 检查行程[${idx}]: day=${day.day}, normalized=${normalizedDay}, activities=${day.activities?.length || 0}`)
+    if (normalizedDay === targetDay) {
+      matchedDay = day
+      matchedIndex = idx
+    }
+  })
+  
+  if (!matchedDay || !Array.isArray(matchedDay.activities)) {
+    console.log('[selectedDayMarkers] 未找到匹配的天数或无活动数据')
+    return []
+  }
+  
+  console.log(`[selectedDayMarkers] 找到第${targetDay}天，共${matchedDay.activities.length}个活动`)
+  
+  const markers = []
+  matchedDay.activities.forEach((activity, index) => {
+    const normalizedDayValue = getNormalizedDayNumber(matchedDay, matchedIndex)
+    const location = resolveActivityLocation(plan.value, normalizedDayValue, index, activity)
+    
+    console.log(`  - 活动[${index}] ${activity.name}: 地址="${activity.address}", location=`, location)
+    
+    if (location?.lng && location?.lat) {
+      markers.push({
+        ...location,
+        name: activity.name,
+        description: activity.description,
+        estimatedCost: activity.estimatedCost,
+        type: activity.type,
+        order: index + 1
+      })
+    } else {
+      console.warn(`  ⚠️ 活动 "${activity.name}" 无有效坐标`)
+    }
+  })
+  
+  console.log(`[selectedDayMarkers] 返回${markers.length}个标记点`)
+  return markers
+})
+
+// 选中天数的路线点
+const selectedDayRoute = computed(() => {
+  return selectedDayMarkers.value.map(m => ({ lng: m.lng, lat: m.lat }))
+})
+
+// 所有标记点（保留，用于其他功能）
 const allMarkers = computed(() => {
   if (!plan.value || !plan.value.itinerary) return []
   
   const markers = []
-  plan.value.itinerary.forEach(day => {
+  plan.value.itinerary.forEach((day, dayIndex) => {
     if (day.activities) {
-      day.activities.forEach(activity => {
-        if (activity.location) {
+      day.activities.forEach((activity, index) => {
+        const normalizedDayValue = getNormalizedDayNumber(day, dayIndex)
+        const location = resolveActivityLocation(plan.value, normalizedDayValue, index, activity)
+        if (location?.lng && location?.lat) {
           markers.push({
-            ...activity.location,
+            ...location,
             name: activity.name,
             description: activity.description,
             estimatedCost: activity.estimatedCost,
@@ -284,10 +437,125 @@ const allMarkers = computed(() => {
   return markers
 })
 
-// 路线点
-const routePoints = computed(() => {
-  return allMarkers.value.map(m => ({ lng: m.lng, lat: m.lat }))
-})
+const sleep = (ms = 120) => new Promise(resolve => setTimeout(resolve, ms))
+
+const ensureSelectedDayValid = (itinerary = []) => {
+  if (!Array.isArray(itinerary) || itinerary.length === 0) {
+    selectedDay.value = 1
+    return
+  }
+
+  const targetDay = normalizeDayValue(selectedDay.value)
+  const hasCurrentDay = itinerary.some((day, idx) => getNormalizedDayNumber(day, idx) === targetDay)
+  
+  if (!hasCurrentDay) {
+    selectedDay.value = getNormalizedDayNumber(itinerary[0], 0)
+    console.log(`[ensureSelectedDayValid] 当前选中第${targetDay}天不存在，切换到第${selectedDay.value}天`)
+  }
+}
+
+const deriveAddressQuery = (planData, activity) => {
+  if (!activity) return ''
+  const address = activity.address || ''
+  const destination = planData?.destination || ''
+  
+  // 如果地址已经很详细（包含目的地城市），直接使用
+  if (!address && !destination) {
+    return activity.name || ''
+  }
+  if (address.includes(destination)) {
+    return address
+  }
+  
+  // 组合目的地+地址，提高地理编码准确性
+  const query = destination && address ? `${destination}${address}` : (address || activity.name || '')
+  console.log(`[deriveAddressQuery] ${activity.name}: 目的地="${destination}", 地址="${address}", 查询="${query}"`)
+  return query
+}
+
+const processActivityLocation = async (planData, day, index, activity) => {
+  const key = buildActivityKey(planData, day.day, index, activity)
+
+  if (activity.location?.lng && activity.location?.lat) {
+    setActivityLocation(key, activity.location)
+    return
+  }
+
+  if (activityLocations.value[key]) {
+    return
+  }
+
+  const query = deriveAddressQuery(planData, activity)
+  const cityHint = buildCityHint(planData?.destination)
+  if (!query) {
+    console.warn(`[geocode] ⚠️ ${activity.name} 无地址信息，跳过`)
+    return
+  }
+
+  const cacheKey = buildGeocodeCacheKey(query, cityHint)
+
+  if (geocodeCache.has(cacheKey)) {
+    const cached = geocodeCache.get(cacheKey)
+    activity.location = cached
+    setActivityLocation(key, cached)
+    console.log(`[geocode] ✓ ${activity.name} 使用全局缓存:`, cached)
+    return
+  }
+
+  try {
+    console.log(`[geocode] 🔍 开始解析: ${activity.name}, 查询="${query}", 城市="${cityHint}"`)
+    const result = await amapService.geocode(query, cityHint)
+    const location = {
+      lng: result.lng,
+      lat: result.lat,
+      address: result.formattedAddress || activity.address || ''
+    }
+    geocodeCache.set(cacheKey, location)
+    activity.location = location
+    setActivityLocation(key, location)
+    console.log(`[geocode] ✅ ${activity.name} 解析成功:`, location)
+    await sleep()
+  } catch (err) {
+    console.error(`[geocode] ❌ ${activity.name} 解析失败:`, err.message || err)
+  }
+}
+
+const prepareActivityLocations = async (planData) => {
+  if (!planData?.itinerary) {
+    console.log('[prepareActivityLocations] 无行程数据')
+    return
+  }
+
+  ensureSelectedDayValid(planData.itinerary)
+
+  console.log(`[prepareActivityLocations] 开始地理编码，共${planData.itinerary.length}天`)
+  geocoding.value = true
+
+  try {
+    for (let dayIndex = 0; dayIndex < planData.itinerary.length; dayIndex++) {
+      const day = planData.itinerary[dayIndex]
+      if (!Array.isArray(day.activities)) continue
+
+      const normalizedDay = getNormalizedDayNumber(day, dayIndex)
+      console.log(`[prepareActivityLocations] 处理第${normalizedDay}天，${day.activities.length}个活动`)
+
+      for (let index = 0; index < day.activities.length; index++) {
+        const activity = day.activities[index]
+        await processActivityLocation(planData, day, index, activity, normalizedDay)
+      }
+    }
+    console.log('[prepareActivityLocations] 地理编码完成')
+  } finally {
+    geocoding.value = false
+  }
+}
+
+watch(plan, async (newPlan) => {
+  if (!newPlan) {
+    return
+  }
+  await prepareActivityLocations(newPlan)
+}, { immediate: true })
 
 // 显示的出发日期（如果没有指定则生成随机日期）
 const displayStartDate = computed(() => {
@@ -369,6 +637,13 @@ onMounted(async () => {
 
 const goBack = () => {
   router.push('/plans')
+}
+
+/**
+ * 选择查看某一天的行程
+ */
+const selectDay = (day) => {
+  selectedDay.value = normalizeDayValue(day)
 }
 
 const showMessage = (msg, type = 'info') => {
@@ -587,6 +862,66 @@ const getTypeIcon = (type) => {
   height: 100vh;
   position: sticky;
   top: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.day-selector {
+  background: white;
+  padding: 12px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.day-btn {
+  padding: 8px 16px;
+  border: 2px solid #e0e0e0;
+  background: white;
+  border-radius: 8px;
+  color: #666;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.3s;
+}
+
+.day-btn:hover {
+  border-color: #4CAF50;
+  color: #4CAF50;
+  transform: translateY(-2px);
+}
+
+.day-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.geocode-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 8px;
+  color: #4a4a6a;
+  margin: 12px;
+  font-size: 13px;
+}
+
+.geocode-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 .itinerary-section {

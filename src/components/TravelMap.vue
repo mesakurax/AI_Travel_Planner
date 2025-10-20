@@ -58,6 +58,7 @@ const emit = defineEmits(['markerClick', 'mapReady'])
 
 const map = ref(null)
 const markerObjects = ref([])
+const routePolyline = ref(null)
 const selectedLocation = ref(null)
 
 onMounted(async () => {
@@ -90,6 +91,10 @@ const addMarkers = (markers) => {
   clearMarkers()
   
   markers.forEach((marker, index) => {
+    if (!marker.lng && !marker.lat && !(marker.location?.lng && marker.location?.lat)) {
+      return
+    }
+
     const markerObj = amapService.addMarker({
       lng: marker.lng || marker.location?.lng,
       lat: marker.lat || marker.location?.lat,
@@ -119,12 +124,23 @@ const addMarkers = (markers) => {
  * 绘制路线
  */
 const drawRoute = async (points) => {
-  if (points.length < 2) return
-  
-  await amapService.drawRoute(points, {
+  clearRoute()
+
+  if (!points || points.length < 2) {
+    return
+  }
+
+  routePolyline.value = await amapService.drawRoute(points, {
     color: '#667eea',
     width: 6
   })
+}
+
+const clearRoute = () => {
+  if (routePolyline.value) {
+    routePolyline.value.setMap(null)
+    routePolyline.value = null
+  }
 }
 
 /**
@@ -132,7 +148,11 @@ const drawRoute = async (points) => {
  */
 const clearMarkers = () => {
   markerObjects.value.forEach(marker => {
-    amapService.map.remove(marker)
+    if (marker?.setMap) {
+      marker.setMap(null)
+    } else if (amapService.map) {
+      amapService.map.remove(marker)
+    }
   })
   markerObjects.value = []
 }
@@ -162,19 +182,30 @@ const setCenter = (lng, lat, zoom) => {
 
 // 监听标记变化
 watch(() => props.markers, (newMarkers) => {
+  if (!map.value) return
+
   if (newMarkers && newMarkers.length > 0) {
     addMarkers(newMarkers)
+  } else {
+    clearMarkers()
+    clearRoute()
   }
 }, { deep: true })
 
 // 监听路线变化
 watch(() => props.route, (newRoute) => {
-  if (newRoute && newRoute.length > 0) {
+  if (!map.value) return
+
+  if (newRoute && newRoute.length > 1) {
     drawRoute(newRoute)
+  } else {
+    clearRoute()
   }
 }, { deep: true })
 
 onUnmounted(() => {
+  clearMarkers()
+  clearRoute()
   amapService.destroy()
 })
 
@@ -183,7 +214,8 @@ defineExpose({
   setCenter,
   addMarkers,
   drawRoute,
-  clearMarkers
+  clearMarkers,
+  clearRoute
 })
 </script>
 

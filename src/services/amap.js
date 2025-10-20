@@ -11,19 +11,24 @@ class AmapService {
     this.securityCode = import.meta.env.VITE_AMAP_SECURITY_CODE || ''
     this.AMap = null
     this.map = null
+    this.loadPromise = null
   }
 
   /**
-   * 初始化地图
+   * 加载 AMap SDK
    */
-  async initMap(containerId, options = {}) {
-    try {
+  async loadAMap() {
+    if (this.AMap) {
+      return this.AMap
+    }
+
+    if (!this.loadPromise) {
       // 设置安全密钥
       window._AMapSecurityConfig = {
         securityJsCode: this.securityCode
       }
 
-      this.AMap = await AMapLoader.load({
+      this.loadPromise = AMapLoader.load({
         key: this.mapKey,
         version: '2.0',
         plugins: [
@@ -35,7 +40,24 @@ class AmapService {
           'AMap.Polyline',
           'AMap.Driving'
         ]
+      }).then(AMap => {
+        this.AMap = AMap
+        return AMap
+      }).catch(error => {
+        this.loadPromise = null
+        throw error
       })
+    }
+
+    return this.loadPromise
+  }
+
+  /**
+   * 初始化地图
+   */
+  async initMap(containerId, options = {}) {
+    try {
+      await this.loadAMap()
 
       const defaultOptions = {
         zoom: 13,
@@ -56,9 +78,14 @@ class AmapService {
   /**
    * 地理编码 - 地址转坐标
    */
-  async geocode(address) {
+  async geocode(address, city = '') {
+    await this.loadAMap()
+
     return new Promise((resolve, reject) => {
-      const geocoder = new this.AMap.Geocoder()
+      const geocoder = new this.AMap.Geocoder({
+        city: city || '全国',
+        batch: false
+      })
       
       geocoder.getLocation(address, (status, result) => {
         if (status === 'complete' && result.geocodes.length) {
@@ -79,6 +106,8 @@ class AmapService {
    * 逆地理编码 - 坐标转地址
    */
   async reverseGeocode(lng, lat) {
+    await this.loadAMap()
+
     return new Promise((resolve, reject) => {
       const geocoder = new this.AMap.Geocoder()
       
@@ -99,6 +128,8 @@ class AmapService {
    * POI 搜索
    */
   async searchPOI(keyword, city) {
+    await this.loadAMap()
+
     return new Promise((resolve, reject) => {
       const placeSearch = new this.AMap.PlaceSearch({
         city: city || '全国',
@@ -160,14 +191,45 @@ class AmapService {
   }
 
   /**
-   * 绘制路线
+   * 绘制路线 - 使用驾车路线规划
    */
   async drawRoute(points, options = {}) {
+    if (!points || points.length < 2) return null
+
+    await this.loadAMap()
+
+    // 如果只有两个点，直接规划路线
+    if (points.length === 2) {
+      return this.drawSingleRoute(points[0], points[1], options)
+    }
+
+    // 多个点时，依次规划并合并路径
+    const allPaths = []
+    for (let i = 0; i < points.length - 1; i++) {
+      try {
+        const routeResult = await this.planDrivingRoute(points[i], points[i + 1])
+        if (routeResult && routeResult.path) {
+          allPaths.push(...routeResult.path)
+        }
+      } catch (err) {
+        console.warn(`路径规划失败 [${i}]->[${i+1}]:`, err)
+        // 如果规划失败，退化为直线连接
+        allPaths.push([points[i].lng, points[i].lat])
+      }
+    }
+    // 添加最后一个点
+    if (points.length > 0) {
+      const lastPoint = points[points.length - 1]
+      allPaths.push([lastPoint.lng, lastPoint.lat])
+    }
+
     const polyline = new this.AMap.Polyline({
-      path: points.map(p => [p.lng, p.lat]),
-      strokeColor: options.color || '#3366FF',
+      path: allPaths,
+      strokeColor: options.color || '#667eea',
       strokeWeight: options.width || 6,
       strokeOpacity: 0.8,
+      lineJoin: 'round',
+      lineCap: 'round',
       ...options
     })
     
@@ -180,24 +242,80 @@ class AmapService {
   }
 
   /**
+   * 绘制单段路线
+   */
+  async drawSingleRoute(start, end, options = {}) {
+    try {
+      const routeResult = await this.planDrivingRoute(start, end)
+      const polyline = new this.AMap.Polyline({
+        path: routeResult.path,
+        strokeColor: options.color || '#667eea',
+        strokeWeight: options.width || 6,
+        strokeOpacity: 0.8,
+        lineJoin: 'round',
+        lineCap: 'round',
+        ...options
+      })
+      
+      if (this.map) {
+        this.map.add(polyline)
+        this.map.setFitView([polyline])
+      }
+      
+      return polyline
+    } catch (err) {
+      console.warn('路线规划失败，使用直线连接:', err)
+      // 退化为直线
+      const polyline = new this.AMap.Polyline({
+        path: [[start.lng, start.lat], [end.lng, end.lat]],
+        strokeColor: options.color || '#667eea',
+        strokeWeight: options.width || 6,
+        strokeOpacity: 0.8,
+        strokeStyle: 'dashed',
+        ...options
+      })
+      
+      if (this.map) {
+        this.map.add(polyline)
+      }
+      
+      return polyline
+    }
+  }
+
+  /**
    * 路径规划 - 驾车
    */
   async planDrivingRoute(start, end) {
+    await this.loadAMap()
+
     return new Promise((resolve, reject) => {
       const driving = new this.AMap.Driving({
-        policy: this.AMap.DrivingPolicy.LEAST_TIME
+        policy: this.AMap.DrivingPolicy.LEAST_TIME,
+        extensions: 'base'
       })
       
       driving.search(
         [start.lng, start.lat],
         [end.lng, end.lat],
         (status, result) => {
-          if (status === 'complete') {
+          if (status === 'complete' && result.routes && result.routes.length > 0) {
             const route = result.routes[0]
+            // 提取路径点
+            const path = []
+            route.steps.forEach(step => {
+              if (step.path && step.path.length > 0) {
+                step.path.forEach(point => {
+                  path.push([point.lng, point.lat])
+                })
+              }
+            })
+            
             resolve({
               distance: route.distance,
               duration: route.time,
-              path: route.steps.map(step => ({
+              path: path,
+              steps: route.steps.map(step => ({
                 instruction: step.instruction,
                 road: step.road,
                 distance: step.distance,
