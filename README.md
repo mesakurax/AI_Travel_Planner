@@ -80,13 +80,22 @@ cp .env.example .env
 npm run dev
 ```
 
-访问 <http://localhost:5173>
+访问 <http://localhost:5173> (Vite 默认开发端口)
 
-**生产构建**: `npm run build`
+**生产构建**:
+
+```bash
+npm run build
+```
+
+**推送到 GitHub 自动部署**:
+
+- 项目已配置 GitHub Actions
+- 推送代码到 main 分支后会自动构建 Docker 镜像并推送到镜像仓库
 
 ---
 
-## � API 密钥获取
+## 🔑 API 密钥获取
 
 - [通义千问](https://bailian.console.aliyun.com) - AI 对话
 - [Supabase](https://supabase.com) - 数据库和认证
