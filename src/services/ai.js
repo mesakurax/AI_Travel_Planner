@@ -4,12 +4,13 @@
  */
 
 import axios from 'axios'
+import { env } from '@/utils/env'
 
 class AIService {
   constructor() {
-    this.apiKey = import.meta.env.VITE_AI_API_KEY || ''
-    this.baseURL = import.meta.env.VITE_AI_BASE_URL || 'https://api.openai.com/v1'
-    this.model = import.meta.env.VITE_AI_MODEL || 'gpt-3.5-turbo'
+    this.apiKey = env.AI_API_KEY
+    this.baseURL = env.AI_BASE_URL
+    this.model = env.AI_MODEL
   }
 
   /**

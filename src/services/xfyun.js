@@ -4,12 +4,13 @@
  */
 
 import CryptoJS from 'crypto-js'
+import { env } from '@/utils/env'
 
 class XunfeiASR {
   constructor() {
-    this.APPID = import.meta.env.VITE_XFYUN_APPID || ''
-    this.APISecret = import.meta.env.VITE_XFYUN_API_SECRET || ''
-    this.APIKey = import.meta.env.VITE_XFYUN_API_KEY || ''
+    this.APPID = env.XFYUN_APP_ID
+    this.APISecret = env.XFYUN_API_SECRET
+    this.APIKey = env.XFYUN_API_KEY
     this.websocket = null
     this.resultText = ''
     this.resultTextTemp = '' // 临时结果（用于动态修正）

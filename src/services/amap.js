@@ -4,11 +4,12 @@
  */
 
 import AMapLoader from '@amap/amap-jsapi-loader'
+import { env } from '@/utils/env'
 
 class AmapService {
   constructor() {
-    this.mapKey = import.meta.env.VITE_AMAP_KEY || ''
-    this.securityCode = import.meta.env.VITE_AMAP_SECURITY_CODE || ''
+    this.mapKey = env.AMAP_KEY
+    this.securityCode = env.AMAP_SECURITY_CODE
     this.AMap = null
     this.map = null
     this.loadPromise = null
