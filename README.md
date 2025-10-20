@@ -76,6 +76,19 @@ npm run dev
 
 访问 http://localhost:3000
 
+### 6. Docker 部署（可选）
+
+```bash
+# 使用 Docker Compose 快速启动
+docker-compose up -d
+
+# 或使用 Docker 命令
+docker build -t ai-travel-planner .
+docker run -d -p 3000:80 ai-travel-planner
+```
+
+详见 **[Docker 部署指南](./DOCKER_DEPLOYMENT.md)**
+
 ## 项目结构
 
 ```text
