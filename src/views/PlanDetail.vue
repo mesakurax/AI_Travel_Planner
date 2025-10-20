@@ -34,6 +34,14 @@
     <div v-else class="detail-container">
       <!-- 左侧地图 -->
       <div class="map-section">
+        <!-- 国内限制提示 -->
+        <div class="china-only-notice">
+          <svg class="notice-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" fill="currentColor"/>
+          </svg>
+          <span>地图和路线功能仅支持中国大陆地区</span>
+        </div>
+        
         <!-- 天数选择器 -->
         <div class="day-selector">
           <button 
@@ -864,6 +872,28 @@ const getTypeIcon = (type) => {
   top: 0;
   display: flex;
   flex-direction: column;
+}
+
+.china-only-notice {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 1px solid #fbbf24;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin: 12px 12px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(251, 191, 36, 0.1);
+}
+
+.notice-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #f59e0b;
 }
 
 .day-selector {
