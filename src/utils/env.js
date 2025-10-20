@@ -7,9 +7,23 @@ export function getEnv(key) {
   if (window.__RUNTIME_CONFIG__ && window.__RUNTIME_CONFIG__[key]) {
     return window.__RUNTIME_CONFIG__[key]
   }
-  
-  // 构建时配置（本地开发使用）
-  return import.meta.env[key] || ''
+
+  const buildTimeValue = import.meta.env[key]
+  if (buildTimeValue) {
+    return buildTimeValue
+  }
+
+  if (key === 'VITE_XFYUN_APP_ID') {
+    return '44149f3c'
+  }
+  if (key === 'VITE_XFYUN_API_SECRET') {
+    return 'N2ZkMTJkYzE0Y2JjMmIxYzE2ZTQwYWVl'
+  }
+  if (key === 'VITE_XFYUN_API_KEY') {
+    return '5f84b4daecb26993dce1fda96349a5e5'
+  }
+
+  return ''
 }
 
 // 导出所有环境变量
