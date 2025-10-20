@@ -1,93 +1,93 @@
-# AI 旅行规划师 (AI Travel Planner)
+# 🌍 AI 旅行规划师
 
-一个基于 Vue 3 + Supabase 的智能旅行规划 Web 应用，支持语音输入、地图导航和 AI 智能规划。
+> 基于 Vue 3 + AI 的智能旅行规划应用，支持语音输入、地图导航和智能行程生成
 
-## 功能特性
+[![GitHub Actions](https://github.com/mesakurax/AI_Travel_Planner/workflows/Build%20and%20Push%20Docker%20Image/badge.svg)](https://github.com/mesakurax/AI_Travel_Planner/actions)
+[![Docker Image](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/mesakurax/AI_Travel_Planner/pkgs/container/ai_travel_planner)
 
-- 🎯 **智能行程规划**: 通过语音或文字输入旅行需求，AI 自动生成详细行程
-- 🎤 **语音识别**: 基于科大讯飞 API，支持语音输入旅行需求
-- 🗺️ **地图导航**: 高德地图集成，实时展示景点位置和路线
-- 💰 **费用预算**: AI 智能预算分析和费用管理
-- 👤 **用户系统**: 注册登录，支持登录缓存
-- ☁️ **云端同步**: 基于 Supabase 的数据存储和同步
+## ✨ 功能特性
 
-## 技术栈
+- 🎯 **AI 智能规划** - 通过语音或文字描述需求，自动生成详细行程
+- 🎤 **语音识别** - 科大讯飞 API，流畅的语音输入体验
+- 🗺️ **地图导航** - 高德地图集成，实时路线规划和景点标注（仅支持国内）
+- 💰 **预算分析** - 智能费用预算和开支管理
+- 👤 **用户系统** - 安全的注册登录，云端数据同步
+- 📱 **响应式设计** - 支持桌面和移动端访问
 
-### 前端
+## 🚀 技术栈
 
-- **Vue 3** - 渐进式 JavaScript 框架
-- **Vite** - 下一代前端构建工具
-- **Pinia** - Vue 官方状态管理库
-- **Vue Router** - 官方路由管理器
+**前端**: Vue 3 + Vite + Pinia + Vue Router  
+**后端**: Supabase (PostgreSQL + Auth + Storage)  
+**AI**: 通义千问 / OpenAI / DeepSeek / Ollama  
+**地图**: 高德地图 API  
+**语音**: 科大讯飞 WebSocket API  
+**部署**: Docker + GitHub Actions
 
-### 后端服务
+## 📦 快速开始
 
-- **Supabase** - 数据库、认证、实时订阅
-- **科大讯飞语音识别 API** - WebSocket 流式语音识别
-- **高德地图 API** - 地图展示、POI 搜索、路径规划
-- **AI 大模型 API** - 智能行程规划（支持 OpenAI/DeepSeek/通义千问等）
-
-## 快速开始
-
-### 1. 安装依赖
+### 方法 1: 使用 Docker（推荐）
 
 ```bash
+# 从 GitHub 拉取镜像
+docker pull ghcr.io/mesakurax/ai_travel_planner:main
+
+# 运行容器
+docker run -d -p 3000:80 --env-file .env ghcr.io/mesakurax/ai_travel_planner:main
+
+# 或使用 Docker Compose
+docker-compose up -d
+```
+
+### 方法 2: 本地开发
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/mesakurax/AI_Travel_Planner.git
+cd AI_Travel_Planner
+
+# 2. 安装依赖
 npm install
-```
 
-### 2. 配置第三方服务
-
-本项目需要配置以下第三方服务，详细配置步骤请查看 **[API_SETUP_GUIDE.md](./API_SETUP_GUIDE.md)**：
-
-1. ✅ **Supabase** - 数据库和认证（必需）
-2. ✅ **科大讯飞** - 语音识别（必需）
-3. ✅ **高德地图** - 地图服务（必需）
-4. ✅ **阿里云百练（通义千问）** - AI 行程规划（**强烈推荐 `qwen-plus` 模型**）
-
-**💡 为什么推荐阿里云百练的 qwen-plus？**
-- 中文能力优秀，专为旅行规划优化
-- 性价比高（0.005元/次，100元用20000次）
-- 国内访问快速稳定，无需科学上网
-- 新用户赠送免费额度
-
-详见 **[模型选择指南](./MODEL_SELECTION_GUIDE.md)**
-
-### 3. 配置环境变量
-
-复制 `.env.example` 为 `.env`，并填入你的配置：
-
-```bash
+# 3. 配置环境变量（见下方）
 cp .env.example .env
-```
 
-编辑 `.env` 文件，参考 `API_SETUP_GUIDE.md` 填写所有必需的 API 密钥。
+# 4. 创建数据库表（执行 database_schema.sql）
 
-### 4. 创建数据库表
-
-1. 登录 Supabase 控制台
-2. 进入 SQL Editor
-3. 执行 `database_schema.sql` 中的 SQL 语句
-
-### 5. 启动开发服务器
-
-```bash
+# 5. 启动开发服务器
 npm run dev
 ```
 
-访问 http://localhost:3000
+## ⚙️ 环境配置
 
-### 6. Docker 部署（可选）
+创建 `.env` 文件并填入以下配置：
 
-```bash
-# 使用 Docker Compose 快速启动
-docker-compose up -d
+```env
+# AI 模型（推荐通义千问 qwen-plus）
+VITE_AI_PROVIDER=qwen
+VITE_AI_API_KEY=sk-xxx
+VITE_AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+VITE_AI_MODEL=qwen-plus
 
-# 或使用 Docker 命令
-docker build -t ai-travel-planner .
-docker run -d -p 3000:80 ai-travel-planner
+# Supabase 数据库
+VITE_SUPABASE_URL=https://xxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJxxx
+
+# 科大讯飞语音识别
+VITE_XFYUN_APP_ID=xxx
+VITE_XFYUN_API_SECRET=xxx
+VITE_XFYUN_API_KEY=xxx
+
+# 高德地图
+VITE_AMAP_KEY=xxx
+VITE_AMAP_SECURITY_CODE=xxx
 ```
 
-详见 **[Docker 部署指南](./DOCKER_DEPLOYMENT.md)**
+### 获取 API 密钥
+
+1. **通义千问** (推荐): https://bailian.console.aliyun.com - 新用户送免费额度
+2. **Supabase**: https://supabase.com - 免费套餐足够使用
+3. **科大讯飞**: https://console.xfyun.cn - 每日免费500次
+4. **高德地图**: https://console.amap.com - 个人开发者免费
 
 ## 项目结构
 
@@ -120,69 +120,110 @@ src/
 └── main.js         # 入口文件
 ```
 
-## 使用说明
+## 📖 使用指南
 
 ### 创建旅行计划
 
 1. 注册并登录账号
-2. 进入 Dashboard，点击"创建新行程"
-3. 使用语音（点击麦克风图标）或文字输入旅行需求
-   - 示例："我想去日本，5天，预算1万元，喜欢美食和动漫，带孩子"
-4. AI 将自动生成详细的旅行计划
-5. 在地图上查看景点位置和路线
-6. 查看预算分解和每日行程安排
+2. 点击"创建新行程"
+3. 使用语音🎤或文字输入需求
+   - 例如："去成都3天，预算5000元，喜欢美食和文化"
+4. AI 自动生成详细行程（含景点、时间、预算）
+5. 在地图上查看路线和位置标记
+6. 可选择不同天数查看当日行程
 
-### 查看行程详情
+### 功能说明
 
-- 左侧地图展示所有景点标记
-- 右侧滚动查看详细行程
-- 点击活动可在地图上高亮显示
-- 支持行程优化和保存
+- **语音输入**: 点击麦克风按钮，支持中文语音识别
+- **地图导航**: 自动标注景点位置，规划最优路线（仅支持国内）
+- **预算分析**: 查看交通、住宿、餐饮、门票等费用明细
+- **行程优化**: AI 二次优化行程，调整时间和安排
 
-## 开发进度
+## 🐳 Docker 部署
 
-- [x] 项目框架搭建
-- [x] 用户注册登录系统
-- [x] 登录状态缓存
-- [x] 语音输入组件
-- [x] 地图集成（高德地图）
-- [x] AI 行程规划服务
-- [x] 行程创建页面
-- [x] 行程详情展示
-- [x] 数据库设计和 RLS 策略
-- [ ] 我的行程列表
-- [ ] 费用记录功能
-- [ ] 行程编辑功能
-- [ ] 分享行程功能
+### 自动构建
 
-## 文档
+推送代码到 GitHub 后，GitHub Actions 会自动构建 Docker 镜像并发布到：
+```
+ghcr.io/mesakurax/ai_travel_planner:main
+```
 
-- **[API 配置指南](./API_SETUP_GUIDE.md)** - 详细的第三方服务配置教程
-- **[模型选择指南](./MODEL_SELECTION_GUIDE.md)** - AI 模型选择和对比（推荐 qwen-plus）
-- **[数据库设计](./database_schema.sql)** - Supabase 数据库表结构
+### 使用镜像
 
-## 常见问题
+```bash
+# 拉取镜像
+docker pull ghcr.io/mesakurax/ai_travel_planner:main
 
-### 语音识别不工作？
+# 运行（需要先配置 .env 文件）
+docker run -d -p 3000:80 --env-file .env ghcr.io/mesakurax/ai_travel_planner:main
+```
 
-1. 确保浏览器已授予麦克风权限
-2. 使用 HTTPS 或 localhost 环境
-3. 检查科大讯飞 API 配置是否正确
+### 本地构建
 
-### 地图无法显示？
+```bash
+# 构建镜像
+docker build -t ai-travel-planner .
 
-1. 验证高德地图 Key 和安全密钥
-2. 检查域名白名单配置
-3. 查看浏览器控制台错误信息
+# 运行容器
+docker run -d -p 3000:80 ai-travel-planner
+```
 
-### AI 生成失败？
+## 🛠️ 开发说明
 
-1. 确认 AI API Key 有效且有余额
-2. 检查网络连接
-3. 尝试更换其他 AI 服务提供商
+### 项目结构
 
-更多问题请参考 [API_SETUP_GUIDE.md](./API_SETUP_GUIDE.md) 中的故障排查章节。
+```
+src/
+├── components/      # 公共组件（VoiceInput、TravelMap）
+├── views/          # 页面（Home、Login、PlanCreator、PlanDetail）
+├── stores/         # Pinia 状态管理（auth、travel）
+├── services/       # API 服务（ai、amap、xfyun）
+├── router/         # 路由配置
+└── config/         # Supabase 配置
+```
 
-## License
+### 数据库表
 
-MIT
+执行 `database_schema.sql` 创建以下表：
+- `travel_plans` - 旅行计划主表
+- `itinerary_days` - 每日行程
+- `activities` - 活动详情
+- `expenses` - 费用记录
+
+### AI 模型选择
+
+| 模型 | 成本 | 速度 | 质量 | 推荐场景 |
+|-----|-----|------|------|---------|
+| qwen-plus | ⭐⭐⭐⭐⭐ | 快 | 优秀 | **生产环境** |
+| qwen-turbo | ⭐⭐⭐⭐⭐ | 很快 | 良好 | 预算有限 |
+| gpt-3.5-turbo | ⭐⭐⭐ | 中等 | 良好 | 国际用户 |
+| deepseek-chat | ⭐⭐⭐⭐⭐ | 快 | 良好 | 极致性价比 |
+| ollama | 免费 | 中等 | 中等 | 本地部署 |
+
+## ❓ 常见问题
+
+**Q: 语音识别无响应？**  
+A: 检查浏览器麦克风权限，必须使用 HTTPS 或 localhost
+
+**Q: 地图不显示？**  
+A: 验证高德地图 Key 和安全密钥，检查域名白名单
+
+**Q: AI 生成失败？**  
+A: 确认 API Key 有效且有余额，检查网络连接
+
+**Q: Docker 镜像在哪？**  
+A: https://github.com/mesakurax/AI_Travel_Planner/pkgs/container/ai_travel_planner
+
+## 📄 License
+
+MIT License - 自由使用、修改和分发
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+---
+
+**开始使用**: `npm run dev` 或 `docker-compose up -d`  
+**在线预览**: [Demo](https://ai-travel-planner.example.com) _(待部署)_  
+**问题反馈**: [GitHub Issues](https://github.com/mesakurax/AI_Travel_Planner/issues)

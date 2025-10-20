@@ -35,7 +35,7 @@ Write-Host ""
 $choice = Read-Host "请输入选项 (1-3)"
 
 switch ($choice) {
-    "1" {
+    1 {
         Write-Host ""
         Write-Host "开始本地构建镜像..." -ForegroundColor Yellow
         Write-Host "这可能需要几分钟时间..." -ForegroundColor Gray
@@ -62,7 +62,7 @@ switch ($choice) {
         }
     }
     
-    "2" {
+    2 {
         Write-Host ""
         Write-Host "从 GitHub 拉取镜像..." -ForegroundColor Yellow
         
@@ -89,7 +89,7 @@ switch ($choice) {
         }
     }
     
-    "3" {
+    3 {
         Write-Host ""
         Write-Host "使用 Docker Compose 启动..." -ForegroundColor Yellow
         
