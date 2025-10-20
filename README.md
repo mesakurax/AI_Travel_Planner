@@ -25,7 +25,22 @@
 
 ## 📦 快速开始
 
-### 本地开发
+### 方式 1: Docker 快速部署（推荐）
+
+```bash
+# 拉取并运行镜像（需要先配置 .env 文件）
+docker pull ghcr.io/mesakurax/ai_travel_planner:main
+docker run -d -p 3000:80 --env-file .env ghcr.io/mesakurax/ai_travel_planner:main
+
+# 或使用 Docker Compose
+docker-compose up -d
+```
+
+访问 http://localhost:3000
+
+### 方式 2: 本地开发
+
+#### 开发流程
 
 ```bash
 # 1. 克隆项目
@@ -35,18 +50,17 @@ cd AI_Travel_Planner
 # 2. 安装依赖
 npm install
 
-# 3. 配置环境变量（见下方）
+# 3. 配置环境变量
 cp .env.example .env
+# 编辑 .env 填入 API 密钥（见下方配置说明）
 
-# 4. 创建数据库表（执行 database_schema.sql）
-
-# 5. 启动开发服务器
-npm run dev
+# 4. 创建数据库
+# 登录 Supabase 控制台，执行 database_schema.sql
 ```
 
-## ⚙️ 环境配置
+#### 环境配置
 
-创建 `.env` 文件并填入以下配置：
+创建 `.env` 文件：
 
 ```env
 # AI 模型（推荐通义千问 qwen-plus）
@@ -69,12 +83,29 @@ VITE_AMAP_KEY=xxx
 VITE_AMAP_SECURITY_CODE=xxx
 ```
 
-### 获取 API 密钥
+API 密钥获取：[通义千问](https://bailian.console.aliyun.com) | [Supabase](https://supabase.com) | [科大讯飞](https://console.xfyun.cn) | [高德地图](https://console.amap.com)
 
-1. **通义千问** (推荐): https://bailian.console.aliyun.com
-2. **Supabase**: https://supabase.com
-3. **科大讯飞**: https://console.xfyun.cn
-4. **高德地图**: https://console.amap.com
+#### 运行方式
+
+**开发模式（热更新）**
+
+```bash
+npm run dev
+```
+
+**Docker 构建部署**
+
+```bash
+# 本地构建镜像
+docker build -t ai-travel-planner .
+docker run -d -p 3000:80 ai-travel-planner
+
+# 或推送到 GitHub 自动构建
+git add .
+git commit -m "更新"
+git push origin main
+# GitHub Actions 会自动构建并发布镜像到 ghcr.io/mesakurax/ai_travel_planner:main
+```
 
 ## 📖 使用指南
 
@@ -83,21 +114,6 @@ VITE_AMAP_SECURITY_CODE=xxx
 3. AI 自动生成详细行程（景点、时间、预算）
 4. 在地图上查看路线和位置标记
 5. 可选择不同天数查看当日行程
-
-## 🐳 Docker 部署
-
-```bash
-# 拉取并运行镜像
-docker pull ghcr.io/mesakurax/ai_travel_planner:main
-docker run -d -p 3000:80 --env-file .env ghcr.io/mesakurax/ai_travel_planner:main
-
-# 或使用 Docker Compose
-docker-compose up -d
-
-# 本地构建
-docker build -t ai-travel-planner .
-docker run -d -p 3000:80 ai-travel-planner
-```
 
 ## 🛠️ 项目结构
 
