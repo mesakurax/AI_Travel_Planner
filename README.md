@@ -29,25 +29,8 @@
 
 首先，在本地创建 `.env` 文件并填入你的 API 密钥：
 
-```powershell
-# Windows PowerShell - 创建 .env 文件
-@"
-VITE_AI_PROVIDER=qwen
-VITE_AI_API_KEY=sk-你的通义千问密钥
-VITE_AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-VITE_AI_MODEL=qwen-plus
-VITE_SUPABASE_URL=https://你的项目.supabase.co
-VITE_SUPABASE_ANON_KEY=你的Supabase匿名密钥
-VITE_XFYUN_APP_ID=你的讯飞APPID
-VITE_XFYUN_API_SECRET=你的讯飞APISecret
-VITE_XFYUN_API_KEY=你的讯飞APIKey
-VITE_AMAP_KEY=你的高德地图Key
-VITE_AMAP_SECURITY_CODE=你的高德安全密钥
-"@ | Out-File -Encoding utf8 .env
-```
-
 ```bash
-# Linux/Mac - 创建 .env 文件
+# 创建 .env 文件（Windows PowerShell 用户请用文本编辑器创建）
 cat > .env << 'EOF'
 VITE_AI_PROVIDER=qwen
 VITE_AI_API_KEY=sk-你的通义千问密钥
@@ -62,6 +45,8 @@ VITE_AMAP_KEY=你的高德地图Key
 VITE_AMAP_SECURITY_CODE=你的高德安全密钥
 EOF
 ```
+
+API 密钥获取：[通义千问](https://bailian.console.aliyun.com) | [Supabase](https://supabase.com) | [科大讯飞](https://console.xfyun.cn) | [高德地图](https://console.amap.com)
 
 然后，拉取并运行 Docker 镜像：
 
@@ -89,38 +74,11 @@ npm install
 
 # 3. 配置环境变量
 cp .env.example .env
-# 编辑 .env 填入 API 密钥（见下方配置说明）
+# 编辑 .env 填入 API 密钥（见上方 API 密钥获取链接）
 
 # 4. 创建数据库
 # 登录 Supabase 控制台，执行 database_schema.sql
 ```
-
-#### 环境配置
-
-创建 `.env` 文件：
-
-```env
-# AI 模型（推荐通义千问 qwen-plus）
-VITE_AI_PROVIDER=qwen
-VITE_AI_API_KEY=sk-xxx
-VITE_AI_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-VITE_AI_MODEL=qwen-plus
-
-# Supabase 数据库
-VITE_SUPABASE_URL=https://xxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJxxx
-
-# 科大讯飞语音识别
-VITE_XFYUN_APP_ID=xxx
-VITE_XFYUN_API_SECRET=xxx
-VITE_XFYUN_API_KEY=xxx
-
-# 高德地图
-VITE_AMAP_KEY=xxx
-VITE_AMAP_SECURITY_CODE=xxx
-```
-
-API 密钥获取：[通义千问](https://bailian.console.aliyun.com) | [Supabase](https://supabase.com) | [科大讯飞](https://console.xfyun.cn) | [高德地图](https://console.amap.com)
 
 #### 运行方式
 
